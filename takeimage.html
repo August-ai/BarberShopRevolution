@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Salon Photo Capture</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body class="capture-page">
+  <main class="capture-page-shell">
+    <section class="capture-card">
+      <p class="capture-kicker">Salon Check-In</p>
+      <h1 class="capture-title"><span id="salonNameHeading">Salon</span> Photo Capture</h1>
+      <p class="capture-copy">
+        Take a clear portrait photo on your phone. It will be stored under this salon so it can be used later in the hairstyle flow.
+      </p>
+
+      <section class="capture-stage" id="captureStage">
+        <button class="capture-button" id="openCameraButton" type="button">Take Picture</button>
+        <p class="capture-helper">On mobile, this opens the camera. On desktop, it lets you choose an image.</p>
+      </section>
+
+      <input
+        class="file-input"
+        id="capturePhotoInput"
+        type="file"
+        accept="image/*"
+        capture="environment"
+      >
+
+      <section class="capture-preview-panel is-hidden" id="previewStep" aria-label="Captured photo preview">
+        <img class="capture-preview-image" id="capturePreviewImage" alt="Captured salon portrait preview">
+        <div class="action-row">
+          <button class="secondary-button" id="retakeCaptureButton" type="button">Retake</button>
+          <button class="secondary-button secondary-button-dark" id="uploadCaptureButton" type="button">Save Photo</button>
+        </div>
+      </section>
+
+      <section class="capture-success-panel is-hidden" id="successStep" aria-label="Upload complete">
+        <div class="capture-success-badge">Saved</div>
+        <img class="capture-preview-image capture-success-image" id="savedPreviewImage" alt="Saved salon portrait preview">
+        <div class="capture-meta">
+          <p class="capture-meta-line"><strong>Salon:</strong> <span id="savedSalonName"></span></p>
+          <p class="capture-meta-line"><strong>Photo ID:</strong> <span id="savedPhotoId"></span></p>
+          <p class="capture-meta-line"><strong>Stored:</strong> <span id="savedTimestamp"></span></p>
+        </div>
+        <div class="action-row">
+          <a class="secondary-button" id="viewSavedPhotoLink" href="#" target="_blank" rel="noreferrer">Open Saved Image</a>
+          <button class="secondary-button secondary-button-dark" id="captureAnotherButton" type="button">Take Another</button>
+        </div>
+      </section>
+
+      <p class="status-message" id="captureStatusMessage" aria-live="polite"></p>
+    </section>
+  </main>
+
+  <script src="/takeimage.js"></script>
+</body>
+</html>

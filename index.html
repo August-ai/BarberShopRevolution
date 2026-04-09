@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Future Of Salons</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="page-shell">
+    <section class="hero-card">
+      <p class="hero-kicker">The Future Of Salons</p>
+      <div class="step-panel" id="captureStep">
+        <button class="capture-button" id="captureButton" type="button">Take Picture</button>
+      </div>
+      <input
+        class="file-input"
+        id="photoInput"
+        type="file"
+        accept="image/*"
+        capture="environment"
+      >
+      <section class="preview-panel is-hidden" id="previewPanel" aria-label="Selected photo preview">
+        <img class="photo-preview" id="photoPreview" alt="Uploaded portrait preview">
+        <div class="action-row">
+          <button class="secondary-button" id="retakeButton" type="button">
+            <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M3 12a9 9 0 0 1 15.36-6.36L21 8" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+              <path d="M21 3v5h-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+              <path d="M21 12a9 9 0 0 1-15.36 6.36L3 16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+              <path d="M3 21v-5h5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+            </svg>
+            <span>Retake</span>
+          </button>
+          <button class="secondary-button secondary-button-dark" id="nextButton" type="button">Next</button>
+        </div>
+      </section>
+      <section class="option-panel is-hidden" id="optionPanel" aria-label="Hairstyle options">
+        <button class="capture-button" id="randomButton" type="button">Generate Random Hairstyles</button>
+        <button class="secondary-button option-button" id="templateButton" type="button">Choose From Templates</button>
+      </section>
+      <section class="template-panel is-hidden" id="templatePanel" aria-label="Hairstyle templates">
+        <div class="template-topbar">
+          <div class="template-count" id="templateCount" aria-live="polite">
+            <span class="template-count-dot"></span>
+            <span class="template-count-text">0 selected</span>
+          </div>
+          <div class="section-copy">
+            <p class="section-label">Template Library</p>
+            <h2 class="section-title">Choose your favorite looks</h2>
+          </div>
+        </div>
+        <p class="template-helper">Select one or more hairstyle templates, add an optional prompt, then continue.</p>
+        <div class="template-grid" id="templateGrid"></div>
+        <div class="template-bottombar">
+          <label class="prompt-field" for="templatePrompt">
+            <span class="prompt-label">Extra prompt</span>
+            <textarea
+              class="prompt-input"
+              id="templatePrompt"
+              rows="4"
+              placeholder="Example: keep it soft, elegant, and salon polished with natural-looking volume."
+            ></textarea>
+          </label>
+          <div class="action-row template-actions">
+            <button class="secondary-button" id="templateBackButton" type="button">Back</button>
+            <button class="secondary-button secondary-button-dark" id="templateNextButton" type="button">Next</button>
+          </div>
+        </div>
+      </section>
+      <section class="generation-panel is-hidden" id="generationPanel" aria-label="Generated hairstyle previews">
+        <div class="section-copy">
+          <p class="section-label" id="generationLabel">Random Set</p>
+          <h2 class="section-title" id="generationTitle">Five hairstyle directions</h2>
+        </div>
+        <div class="result-grid" id="resultGrid"></div>
+      </section>
+      <p class="status-message" id="statusMessage" aria-live="polite"></p>
+    </section>
+  </main>
+
+  <div class="lightbox is-hidden" id="lightbox" aria-hidden="true" role="dialog" aria-label="Expanded generated hairstyle">
+    <button class="lightbox-close" id="lightboxClose" type="button" aria-label="Close image preview">Close</button>
+    <div class="lightbox-frame">
+      <img class="lightbox-image" id="lightboxImage" alt="Expanded generated hairstyle preview">
+    </div>
+  </div>
+
+  <script src="hairstyles.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
