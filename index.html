@@ -1,32 +1,28 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>The Future Of Salons</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Future Of Salons</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
-  <main class="page-shell">
-    <section class="hero-card">
-      <p class="hero-kicker">The Future Of Salons</p>
-      <div class="step-panel" id="captureStep">
-        <button class="capture-button" id="captureButton" type="button">Take Picture</button>
-      </div>
-      <input
-        class="file-input"
-        id="photoInput"
-        type="file"
-        accept="image/*"
-        capture="environment"
-      >
-      <section class="preview-panel is-hidden" id="previewPanel" aria-label="Selected photo preview">
-        <img class="photo-preview" id="photoPreview" alt="Uploaded portrait preview">
-        <div class="action-row">
-          <button class="secondary-button" id="retakeButton" type="button">
+    <main class="page-shell">
+        <section class="hero-card">
+            <p class="hero-kicker">The Future Of Salons</p>
+            <div class="step-panel" id="captureStep">
+                <button class="capture-button" id="captureButton" type="button">Take Picture</button>
+            </div>
+            <input class="file-input" id="photoInput" type="file" accept="image/*" capture="environment">
+            <section class="preview-panel is-hidden" id="previewPanel" aria-label="Selected photo preview">
+                <img class="photo-preview" id="photoPreview" alt="Uploaded portrait preview">
+                <div class="action-row">
+                    <button class="secondary-button" id="retakeButton" type="button">
             <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true">
               <path d="M3 12a9 9 0 0 1 15.36-6.36L21 8" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
               <path d="M21 3v5h-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
@@ -35,28 +31,48 @@
             </svg>
             <span>Retake</span>
           </button>
-          <button class="secondary-button secondary-button-dark" id="nextButton" type="button">Next</button>
-        </div>
-      </section>
-      <section class="option-panel is-hidden" id="optionPanel" aria-label="Hairstyle options">
-        <button class="capture-button" id="randomButton" type="button">Generate Random Hairstyles</button>
-        <button class="secondary-button option-button" id="templateButton" type="button">Choose From Templates</button>
-      </section>
-      <section class="template-panel is-hidden" id="templatePanel" aria-label="Hairstyle templates">
-        <div class="template-topbar">
-          <div class="template-count" id="templateCount" aria-live="polite">
-            <span class="template-count-dot"></span>
-            <span class="template-count-text">0 selected</span>
-          </div>
-          <div class="section-copy">
-            <p class="section-label">Template Library</p>
-            <h2 class="section-title">Choose your favorite looks</h2>
-          </div>
-        </div>
-        <p class="template-helper">Select one or more hairstyle templates, add an optional prompt, then continue.</p>
-        <div class="template-grid" id="templateGrid"></div>
-        <div class="template-bottombar">
-          <label class="prompt-field" for="templatePrompt">
+                    <button class="secondary-button secondary-button-dark" id="nextButton" type="button">Next</button>
+                </div>
+            </section>
+            <section class="option-panel is-hidden" id="optionPanel" aria-label="Hairstyle options">
+                <button class="capture-button" id="randomButton" type="button">Generate Random Hairstyles</button>
+                <button class="secondary-button option-button" id="templateButton" type="button">Choose From Templates</button>
+            </section>
+            <section class="template-panel is-hidden" id="templatePanel" aria-label="Hairstyle templates">
+                <div class="template-topbar">
+                    <div class="template-count" id="templateCount" aria-live="polite">
+                        <span class="template-count-dot"></span>
+                        <span class="template-count-text">0 selected</span>
+                    </div>
+
+                </div>
+                <div class="section-copy">
+                    <p class="section-label">Template Library</p>
+                    <h2 class="section-title">Choose your favorite looks</h2>
+                </div>
+                <p class="template-helper">Select one or more hairstyle templates, add an optional prompt, then continue.</p>
+                <section class="template-filter-panel" aria-label="Template filters">
+                    <div class="template-filter-header">
+                        <button class="template-filter-toggle" id="templateFilterToggle" type="button" aria-expanded="false" aria-controls="templateFilterContent">
+                            <span class="template-filter-toggle-icon" aria-hidden="true">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </span>
+                            <span>Filter</span>
+                        </button>
+                        <p class="template-filter-summary" id="templateFilterSummary">Showing all templates.</p>
+                    </div>
+                    <div class="template-filter-content is-hidden" id="templateFilterContent">
+                        <div class="template-filter-bar" id="templateFilterBar"></div>
+                        <div class="template-filter-footer">
+                            <button class="template-filter-reset" id="templateFilterReset" type="button">Clear Filters</button>
+                        </div>
+                    </div>
+                </section>
+                <div class="template-grid" id="templateGrid"></div>
+                <div class="template-bottombar">
+                    <label class="prompt-field" for="templatePrompt">
             <span class="prompt-label">Extra prompt</span>
             <textarea
               class="prompt-input"
@@ -65,31 +81,144 @@
               placeholder="Example: keep it soft, elegant, and salon polished with natural-looking volume."
             ></textarea>
           </label>
-          <div class="action-row template-actions">
-            <button class="secondary-button" id="templateBackButton" type="button">Back</button>
-            <button class="secondary-button secondary-button-dark" id="templateNextButton" type="button">Next</button>
-          </div>
+                    <div class="action-row template-actions">
+                        <button class="secondary-button" id="templateBackButton" type="button">Back</button>
+                    </div>
+                </div>
+            </section>
+            <section class="generation-panel is-hidden" id="generationPanel" aria-label="Generated hairstyle previews">
+                <div class="section-copy">
+                    <p class="section-label" id="generationLabel">Random Set</p>
+                    <h2 class="section-title" id="generationTitle">Five hairstyle directions</h2>
+                </div>
+                <section class="generation-progress-card is-hidden" id="generationProgressCard" aria-live="polite">
+                    <div class="generation-progress-media">
+                        <img class="generation-progress-image" id="generationProgressImage" alt="Source image being sent to Nano Banana">
+                        <div class="generation-progress-media-glow" aria-hidden="true"></div>
+                    </div>
+                    <div class="generation-progress-copy">
+                        <p class="generation-progress-kicker" id="generationProgressKicker">Nano Banana</p>
+                        <h3 class="generation-progress-title" id="generationProgressTitle">Generating your new hairstyle</h3>
+                        <p class="generation-progress-text" id="generationProgressText">Your source image is being used to build the next results.</p>
+                        <div class="progress-track" aria-hidden="true">
+                            <span class="progress-fill"></span>
+                        </div>
+                    </div>
+                </section>
+                <div class="result-grid" id="resultGrid"></div>
+            </section>
+            <p class="status-message" id="statusMessage" aria-live="polite"></p>
+        </section>
+    </main>
+    <div class="page-floating-dock is-hidden" id="templateNextDock" aria-hidden="true">
+        <div class="page-floating-dock-inner">
+            <button class="secondary-button secondary-button-dark template-floating-next" id="templateNextButton" type="button">Next</button>
         </div>
-      </section>
-      <section class="generation-panel is-hidden" id="generationPanel" aria-label="Generated hairstyle previews">
-        <div class="section-copy">
-          <p class="section-label" id="generationLabel">Random Set</p>
-          <h2 class="section-title" id="generationTitle">Five hairstyle directions</h2>
-        </div>
-        <div class="result-grid" id="resultGrid"></div>
-      </section>
-      <p class="status-message" id="statusMessage" aria-live="polite"></p>
-    </section>
-  </main>
-
-  <div class="lightbox is-hidden" id="lightbox" aria-hidden="true" role="dialog" aria-label="Expanded generated hairstyle">
-    <button class="lightbox-close" id="lightboxClose" type="button" aria-label="Close image preview">Close</button>
-    <div class="lightbox-frame">
-      <img class="lightbox-image" id="lightboxImage" alt="Expanded generated hairstyle preview">
     </div>
-  </div>
 
-  <script src="hairstyles.js"></script>
-  <script src="script.js"></script>
+    <div class="lightbox is-hidden" id="lightbox" aria-hidden="true" role="dialog" aria-label="Generated hairstyle detail workspace">
+        <div class="lightbox-frame lightbox-workspace">
+            <button class="lightbox-close" id="lightboxClose" type="button" aria-label="Close image preview">Close</button>
+            <div class="lightbox-body">
+                <div class="section-copy">
+                    <p class="section-label">Selected Result</p>
+                    <h2 class="section-title" id="lightboxTitle">Generated hairstyle</h2>
+                    <p class="lightbox-description" id="lightboxDescription"></p>
+                </div>
+                <div class="lightbox-content">
+                    <section class="lightbox-preview-panel" aria-label="Selected generated result">
+                        <p class="lightbox-panel-label">Selected image</p>
+                        <div class="lightbox-image-shell" id="lightboxImageShell">
+                            <img class="lightbox-image" id="lightboxImage" alt="Expanded generated hairstyle preview">
+                            <canvas class="lightbox-markup-canvas" id="lightboxMarkupCanvas" aria-label="Markup layer for the selected image"></canvas>
+                            <div class="lightbox-markup-toolbar" role="toolbar" aria-label="Image markup tools">
+                                <button class="lightbox-markup-tool" id="lightboxDrawButton" type="button" aria-pressed="false" aria-label="Use red pencil">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                        <path d="M4 20l4.4-1 9.4-9.4a1.8 1.8 0 0 0 0-2.6l-.8-.8a1.8 1.8 0 0 0-2.6 0L5 15.6 4 20Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+                                        <path d="M13.5 7.5l3 3" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+                                    </svg>
+                                </button>
+                                <button class="lightbox-markup-tool" id="lightboxEraseButton" type="button" aria-pressed="false" aria-label="Use eraser">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                        <path d="M6.6 14.8l6.7-6.7a2 2 0 0 1 2.8 0l3.3 3.3a2 2 0 0 1 0 2.8L15 18.6a2 2 0 0 1-1.4.6H9.4a2 2 0 0 1-1.4-.6l-1.4-1.4a2 2 0 0 1 0-2.8Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+                                        <path d="M12 19.2h7.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="lightbox-loading-overlay is-hidden" id="lightboxLoadingOverlay" aria-live="polite">
+                                <div class="lightbox-loading-card">
+                                    <p class="lightbox-loading-title" id="lightboxLoadingTitle">Generating</p>
+                                    <p class="lightbox-loading-text" id="lightboxLoadingText">This selected image is being used as the source for the next request.</p>
+                                    <div class="progress-track progress-track-lightbox" aria-hidden="true">
+                                        <span class="progress-fill"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                    <aside class="lightbox-tools" aria-label="Follow-up generation tools">
+                        <section class="lightbox-tool-card">
+                            <div class="lightbox-tool-copy">
+                                <p class="lightbox-tool-title">See more views</p>
+                                <p class="lightbox-tool-text">Generate two extra angles focused on the back of the same hairstyle.</p>
+                            </div>
+                            <button class="secondary-button secondary-button-dark" id="generateViewsButton" type="button">See More Views</button>
+                            <p class="lightbox-tool-status" id="viewStatusMessage" aria-live="polite"></p>
+                        </section>
+                        <section class="lightbox-tool-card">
+                            <div class="lightbox-tool-copy">
+                                <p class="lightbox-tool-title">Prompt variation</p>
+                                <p class="lightbox-tool-text">Add a separate prompt to create a new variation beside the selected image.</p>
+                            </div>
+                            <label class="prompt-field" for="variationPromptInput">
+                                <span class="prompt-label">Extra prompt</span>
+                                <textarea
+                                  class="prompt-input"
+                                  id="variationPromptInput"
+                                  rows="4"
+                                  placeholder="Example: make it sleeker, more polished, and slightly shorter around the front."
+                                ></textarea>
+                            </label>
+                            <div class="lightbox-hair-color-control">
+                                <button class="lightbox-hair-color-toggle" id="variationHairColorToggle" type="button" aria-expanded="false" aria-controls="variationHairColorPanel">Change Hair Color</button>
+                                <div class="lightbox-hair-color-panel is-hidden" id="variationHairColorPanel">
+                                    <div class="lightbox-hair-color-palette" id="variationHairColorPalette" aria-label="Common hair colors"></div>
+                                    <div class="lightbox-hair-color-actions">
+                                        <button class="lightbox-hair-color-more" id="variationHairColorMore" type="button" aria-expanded="false" aria-controls="variationHairColorCustom">More</button>
+                                        <button class="lightbox-hair-color-reset" id="variationHairColorReset" type="button">Reset</button>
+                                    </div>
+                                    <div class="lightbox-hair-color-custom is-hidden" id="variationHairColorCustom">
+                                        <input class="lightbox-hair-color-input" id="variationHairColorInput" type="color" value="#9b5b4b" aria-label="Choose any hair color">
+                                        <span class="lightbox-hair-color-custom-copy">Pick any RGB hair color.</span>
+                                    </div>
+                                </div>
+                                <p class="lightbox-hair-color-note" id="variationHairColorNote">Optional: pick a common hair color, or use More for any custom shade.</p>
+                            </div>
+                            <button class="secondary-button" id="generateVariationButton" type="button">Generate Prompt Variation</button>
+                            <p class="lightbox-tool-status" id="variationStatusMessage" aria-live="polite"></p>
+                        </section>
+                    </aside>
+                </div>
+                <section class="lightbox-section is-hidden" id="promptVariationSection" aria-label="Prompt variation comparison">
+                    <div class="lightbox-section-copy">
+                        <p class="section-label">Prompt Variation</p>
+                        <h3 class="section-title">Original and new variation</h3>
+                    </div>
+                    <div class="lightbox-followup-grid lightbox-followup-grid-compare" id="promptVariationGrid"></div>
+                </section>
+                <section class="lightbox-section is-hidden" id="viewResultsSection" aria-label="Generated back views">
+                    <div class="lightbox-section-copy">
+                        <p class="section-label">More Views</p>
+                        <h3 class="section-title">Back-angle hairstyle views</h3>
+                    </div>
+                    <div class="lightbox-followup-grid" id="viewResultsGrid"></div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <script src="hairstyles.js"></script>
+    <script src="script.js"></script>
 </body>
+
 </html>

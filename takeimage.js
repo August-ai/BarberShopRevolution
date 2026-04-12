@@ -16,6 +16,7 @@ const savedTimestamp = document.getElementById("savedTimestamp");
 const viewSavedPhotoLink = document.getElementById("viewSavedPhotoLink");
 
 const API_BASE_URL = window.location.protocol === "file:" ? "http://localhost:3013" : window.location.origin;
+const CAPTURED_PHOTO_STORAGE_KEY = "capturedSalonPhoto";
 const currentPathSegments = window.location.pathname.split("/").filter(Boolean);
 const rawSalonSlug = decodeURIComponent(currentPathSegments[0] || "salon1");
 const salonLabel = rawSalonSlug
@@ -94,6 +95,10 @@ const showPreview = (file) => {
   setStatus(`Ready to save ${file.name} for ${salonLabel}.`);
 };
 
+const redirectToSalonHomepage = () => {
+  window.location.assign(`/${encodeURIComponent(rawSalonSlug)}`);
+};
+
 const handleUpload = async () => {
   const [selectedFile] = capturePhotoInput.files;
 
@@ -132,9 +137,9 @@ const handleUpload = async () => {
     savedPhotoId.textContent = photo.id;
     savedTimestamp.textContent = new Date(photo.storedAt).toLocaleString();
     viewSavedPhotoLink.href = imageUrl;
-    previewStep.classList.add("is-hidden");
-    successStep.classList.remove("is-hidden");
-    setStatus(`Photo saved successfully for ${photo.salonName}.`);
+    sessionStorage.setItem(CAPTURED_PHOTO_STORAGE_KEY, JSON.stringify(photo));
+    setStatus(`Photo saved for ${photo.salonName}. Redirecting...`);
+    window.setTimeout(redirectToSalonHomepage, 500);
   } catch (error) {
     setStatus(error.message);
   } finally {
