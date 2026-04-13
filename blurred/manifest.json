@@ -1,0 +1,17 @@
+[
+  {
+    "source": "Redhair_shoulderHair.png",
+    "output": "Redhair_shoulderHair.png",
+    "detectionMode": "detected"
+  },
+  {
+    "source": "layered-long-bob-with-side-swept-bangs.jpg",
+    "output": "layered-long-bob-with-side-swept-bangs.jpg",
+    "detectionMode": "detected"
+  },
+  {
+    "source": "voluminous-70s-layered-blowout.jpg",
+    "output": "voluminous-70s-layered-blowout.jpg",
+    "detectionMode": "detected"
+  }
+]

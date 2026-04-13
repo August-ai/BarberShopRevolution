@@ -84,7 +84,7 @@ const COMMON_HAIR_COLORS = [
   {
     hex: "#171311",
     label: "Black",
-    imageUrl: "/styles/long-hollywood-waves-with-middle-part.jpg"
+    imageUrl: "/styles/sleek-center-part-lob.jpg"
   },
   {
     hex: "#5a3a2d",
@@ -99,7 +99,7 @@ const COMMON_HAIR_COLORS = [
   {
     hex: "#e0c27a",
     label: "Blonde",
-    imageUrl: "/assets/color-references/blonde-reference.jpg"
+    imageUrl: "/styles/side-part-textured-french-bob.jpg"
   },
   {
     hex: "#f0d89d",
@@ -109,7 +109,7 @@ const COMMON_HAIR_COLORS = [
   {
     hex: "#bc4a34",
     label: "Red",
-    imageUrl: "/assets/color-references/red-reference.jpg"
+    imageUrl: "/styles/Redhair_shoulderHair.png"
   }
 ];
 
@@ -247,10 +247,25 @@ const isCommonHairColor = (hexColor) => {
   return COMMON_HAIR_COLORS.some((color) => color.hex.toUpperCase() === normalizedHex);
 };
 
-const getVariationHairColorLabel = (hexColor) => {
+const getCommonHairColorOption = (hexColor) => {
   const normalizedHex = String(hexColor || "").trim().toUpperCase();
-  const match = COMMON_HAIR_COLORS.find((color) => color.hex.toUpperCase() === normalizedHex);
+  return COMMON_HAIR_COLORS.find((color) => color.hex.toUpperCase() === normalizedHex) || null;
+};
+
+const getVariationHairColorLabel = (hexColor) => {
+  const match = getCommonHairColorOption(hexColor);
   return match ? match.label : "Custom";
+};
+
+const getVariationHairColorRequestLabel = (hexColor) => {
+  const normalizedHex = String(hexColor || "").trim().toUpperCase();
+
+  if (!normalizedHex) {
+    return "";
+  }
+
+  const match = getCommonHairColorOption(normalizedHex);
+  return match ? match.label : `Custom color ${normalizedHex}`;
 };
 
 const setSelectedVariationHairColor = (hexColor) => {
@@ -359,7 +374,9 @@ const syncVariationHairColorUi = () => {
   variationHairColorReset.disabled = !selectedVariationHairColor;
   renderVariationHairColorPalette();
   variationHairColorNote.textContent = selectedVariationHairColor
-    ? `${getVariationHairColorLabel(selectedVariationHairColor)} selected. A matching color swatch will be sent with the variation request.`
+    ? isCommonHairColor(selectedVariationHairColor)
+      ? `${getVariationHairColorLabel(selectedVariationHairColor)} selected. Its label and reference photo will be used for the variation request.`
+      : `${getVariationHairColorRequestLabel(selectedVariationHairColor)} selected. A color swatch will be used for the variation request.`
     : "Optional: pick a common hair color reference, or use More for any custom shade.";
   syncVariationHairColorPreviewState();
 };
@@ -393,6 +410,38 @@ const createHairColorSwatchDataUrl = (hexColor) => {
 };
 
 const getActiveVariationHairColor = () => selectedVariationHairColor || "";
+
+const getHairColorReferencePayload = async (hexColor) => {
+  const normalizedHex = String(hexColor || "").trim();
+
+  if (!normalizedHex) {
+    return {
+      hairColorLabel: "",
+      hairColorReferenceImageBase64: "",
+      hairColorReferenceKind: ""
+    };
+  }
+
+  const commonHairColor = getCommonHairColorOption(normalizedHex);
+
+  if (commonHairColor?.imageUrl) {
+    try {
+      return {
+        hairColorLabel: commonHairColor.label,
+        hairColorReferenceImageBase64: await getImageDataUrlFromUrl(resolveHairColorPreviewUrl(commonHairColor)),
+        hairColorReferenceKind: "portrait"
+      };
+    } catch (_error) {
+      // Fall back to a generated swatch if the reference portrait can't be loaded.
+    }
+  }
+
+  return {
+    hairColorLabel: getVariationHairColorRequestLabel(normalizedHex),
+    hairColorReferenceImageBase64: createHairColorSwatchDataUrl(normalizedHex),
+    hairColorReferenceKind: "swatch"
+  };
+};
 
 const syncVariationHairColorPreviewState = () => {
   lightboxImageShell.classList.remove("is-hair-color-preview");
@@ -614,7 +663,7 @@ const finishLightboxMarkupStroke = (event) => {
 const setGenerationProgressState = ({
   active,
   imageUrl = "",
-  kicker = "Nano Banana",
+  kicker = "Generating",
   title = "Generating your new hairstyle",
   text = "Your source image is being used to build the next results."
 }) => {
@@ -1115,7 +1164,7 @@ const createFollowUpCard = ({ title, imageUrl, alt, note, promptText, errorMessa
   } else {
     const placeholder = document.createElement("p");
     placeholder.className = "lightbox-followup-note";
-    placeholder.textContent = pending ? "Generating preview..." : "No image returned.";
+    placeholder.textContent = pending ? "Generating preview..." : "Preview unavailable.";
     media.appendChild(placeholder);
   }
 
@@ -1187,7 +1236,16 @@ const renderPromptVariationSection = (result) => {
   const promptVariationResult = result.promptVariationResult;
   const variationDetails = [
     promptVariationResult.extraPrompt ? `Extra prompt: ${promptVariationResult.extraPrompt}` : "",
-    promptVariationResult.hairColorHex ? `Hair color: ${promptVariationResult.hairColorHex.toUpperCase()}` : ""
+    promptVariationResult.hairColorLabel
+      ? `Hair color: ${promptVariationResult.hairColorLabel}`
+      : promptVariationResult.hairColorHex
+        ? `Hair color: ${promptVariationResult.hairColorHex.toUpperCase()}`
+        : "",
+    promptVariationResult.hairColorReferenceKind === "portrait"
+      ? "Reference: color photo"
+      : promptVariationResult.hairColorReferenceKind === "swatch"
+        ? "Reference: color swatch"
+        : ""
   ].filter(Boolean).join(" • ");
 
   promptVariationGrid.appendChild(createFollowUpCard({
@@ -1198,11 +1256,9 @@ const renderPromptVariationSection = (result) => {
       ? promptVariationResult.hairColorHex && !promptVariationResult.extraPrompt
         ? "Generating a new image from your selected hair color."
         : "Generating a new image from your extra prompt."
-      : promptVariationResult.testMode
-      ? "Test mode is on, so the selected image is shown as a placeholder."
-        : promptVariationResult.hairColorHex && !promptVariationResult.extraPrompt
-          ? "Generated from your selected hair color."
-          : "Generated from your extra prompt.",
+      : promptVariationResult.hairColorHex && !promptVariationResult.extraPrompt
+        ? "Created from your selected hair color."
+        : "Created from your extra prompt.",
     promptText: variationDetails,
     errorMessage: promptVariationResult.errorMessage || "",
     pending: Boolean(promptVariationResult.pending),
@@ -1231,9 +1287,7 @@ const renderViewResultsSection = (result) => {
       alt: `${viewResult.name} generated hairstyle view`,
       note: viewResult.pending
         ? "Generating this back-angle view."
-        : viewResult.testMode
-        ? "Test mode is on, so the selected image is shown as a placeholder."
-          : "Generated from the selected hairstyle result.",
+        : "Created from the selected hairstyle result.",
       errorMessage: viewResult.errorMessage || "",
       pending: Boolean(viewResult.pending),
       onSelect: () => openResultWorkspace(createWorkspaceResultFromRelatedResult(
@@ -1407,7 +1461,7 @@ const createResultCard = (hairstyle) => {
         <span class="result-badge">Queued</span>
       </div>
       <p class="result-description">${hairstyle.prompt}</p>
-      <p class="result-note">Sending this look to Nano Banana.</p>
+      <p class="result-note">Preparing this look now.</p>
     </div>
   `;
 
@@ -1452,9 +1506,7 @@ const updateResultCard = (card, result) => {
     badge.textContent = "Ready";
     badge.classList.remove("warning");
     badge.classList.add("success");
-    note.textContent = result.testMode
-      ? "Test mode is on, so this is your original image shown as a placeholder. Click it for more views or a prompt variation."
-      : "Nano Banana returned a generated variation. Click it for more views or a prompt variation.";
+    note.textContent = "Your image is ready. Click it to explore more angles or make refinements.";
     media.onclick = () => openResultWorkspace(card.resultData || result);
     return;
   }
@@ -1464,7 +1516,7 @@ const updateResultCard = (card, result) => {
   badge.textContent = "Error";
   badge.classList.remove("success");
   badge.classList.add("warning");
-  note.textContent = result.errorMessage || "The generation request did not return an image.";
+  note.textContent = result.errorMessage || "We couldn't prepare this look right now.";
   addPromptBlock(card, result.finalPrompt);
 };
 
@@ -1539,7 +1591,17 @@ const requestGeneratedHairstyleViews = async ({ imageBase64, lookName, lookDescr
   return payload.results || [];
 };
 
-const requestGeneratedHairstyleVariation = async ({ imageBase64, lookName, lookDescription, extraPrompt, hairColorHex = "", hairColorSwatchBase64 = "" }) => {
+const requestGeneratedHairstyleVariation = async ({
+  imageBase64,
+  lookName,
+  lookDescription,
+  extraPrompt,
+  hairColorHex = "",
+  hairColorLabel = "",
+  hairColorReferenceImageBase64 = "",
+  hairColorReferenceKind = "",
+  hairColorSwatchBase64 = ""
+}) => {
   const response = await fetch(`${API_BASE_URL}/api/generated-hairstyle-variation`, {
     method: "POST",
     headers: {
@@ -1551,6 +1613,9 @@ const requestGeneratedHairstyleVariation = async ({ imageBase64, lookName, lookD
       lookDescription,
       extraPrompt,
       hairColorHex,
+      hairColorLabel,
+      hairColorReferenceImageBase64,
+      hairColorReferenceKind,
       hairColorSwatchBase64
     })
   });
@@ -1580,7 +1645,7 @@ const handleGenerateViews = async () => {
   setLightboxLoadingState({
     active: true,
     title: "Generating More Views",
-    text: "The selected result is being reused as the source while Nano Banana builds both back-angle views."
+    text: "The selected result is being used to create additional back-angle views."
   });
   setBusyState(true);
 
@@ -1624,6 +1689,10 @@ const handleGeneratePromptVariation = async () => {
 
   const extraPrompt = variationPromptInput.value.trim();
   const hairColorHex = getActiveVariationHairColor();
+  const initialHairColorLabel = getVariationHairColorRequestLabel(hairColorHex);
+  const initialHairColorReferenceKind = hairColorHex
+    ? isCommonHairColor(hairColorHex) ? "portrait" : "swatch"
+    : "";
 
   if (!extraPrompt && !hairColorHex) {
     variationStatusMessage.textContent = "Add an extra prompt or choose a hair color first.";
@@ -1639,34 +1708,69 @@ const handleGeneratePromptVariation = async () => {
     name: `${resultReference.name} Prompt Variation`,
     extraPrompt,
     hairColorHex,
+    hairColorLabel: initialHairColorLabel,
+    hairColorReferenceKind: initialHairColorReferenceKind,
     pending: true
   };
   variationStatusMessage.textContent = hairColorHex && !extraPrompt
-    ? "Generating a new hair-color variation from your selected swatch."
+    ? isCommonHairColor(hairColorHex)
+      ? "Creating a new hair-color variation using the selected color label and reference photo."
+      : "Creating a new hair-color variation using your custom color swatch."
     : hairColorHex
-      ? "Generating a new prompt-based variation with your selected hair color."
-      : "Generating a new prompt-based variation.";
+      ? isCommonHairColor(hairColorHex)
+        ? "Creating a new variation using your selected color label and reference photo."
+        : "Creating a new variation using your custom color swatch."
+      : "Creating a new prompt-based variation.";
   syncLightboxPanels();
   setLightboxLoadingState({
     active: true,
     title: "Generating Prompt Variation",
     text: hairColorHex && !extraPrompt
-      ? "The selected result and your hair-color swatch are being sent while Nano Banana creates the color change."
+      ? isCommonHairColor(hairColorHex)
+        ? "The selected result, color label, and reference photo are being used to create the new variation."
+        : "The selected result and your custom color swatch are being used to create the new variation."
       : hairColorHex
-        ? "The selected result and your hair-color swatch are being sent while Nano Banana creates the new variation."
-        : "The selected result is being reused as the source while Nano Banana creates your new variation."
+        ? isCommonHairColor(hairColorHex)
+          ? "The selected result, color label, and reference photo are being used to create the new variation."
+          : "The selected result and your custom color swatch are being used to create the new variation."
+        : "The selected result is being used to create your new variation."
   });
   setBusyState(true);
 
   try {
     const imageBase64 = await getImageDataUrlFromUrl(resultReference.imageUrl);
     const hairColorSwatchBase64 = hairColorHex ? createHairColorSwatchDataUrl(hairColorHex) : "";
+    const {
+      hairColorLabel,
+      hairColorReferenceImageBase64,
+      hairColorReferenceKind
+    } = hairColorHex
+      ? await getHairColorReferencePayload(hairColorHex)
+      : {
+        hairColorLabel: "",
+        hairColorReferenceImageBase64: "",
+        hairColorReferenceKind: ""
+      };
+
+    resultReference.promptVariationResult.hairColorLabel = hairColorLabel;
+    resultReference.promptVariationResult.hairColorReferenceKind = hairColorReferenceKind;
+
+    if (activeLightboxResult === resultReference && hairColorHex) {
+      variationStatusMessage.textContent = hairColorReferenceKind === "portrait"
+        ? "Using the selected color label and reference photo."
+        : "Using your custom color swatch.";
+      syncLightboxPanels();
+    }
+
     const result = await requestGeneratedHairstyleVariation({
       imageBase64,
       lookName: resultReference.name,
       lookDescription: getResultDescription(resultReference),
       extraPrompt,
       hairColorHex,
+      hairColorLabel,
+      hairColorReferenceImageBase64,
+      hairColorReferenceKind,
       hairColorSwatchBase64
     });
 
@@ -1682,6 +1786,8 @@ const handleGeneratePromptVariation = async () => {
       name: `${resultReference.name} Prompt Variation`,
       extraPrompt,
       hairColorHex,
+      hairColorLabel: initialHairColorLabel,
+      hairColorReferenceKind: initialHairColorReferenceKind,
       errorMessage: error.message
     };
 
@@ -1721,11 +1827,11 @@ const handleRandomHairstyles = async () => {
     imageUrl: sourcePreviewUrl,
     kicker: "Source Image",
     title: "Generating five hairstyle directions",
-    text: "Your uploaded photo is blurred here while Nano Banana turns it into a full set of new hairstyle previews."
+    text: "Your uploaded photo is being used to create a full set of new hairstyle previews."
   });
   scrollToGenerationPanel();
   setBusyState(true);
-  setStatus("Generating 5 hairstyle variations. In test mode, the original image will be shown.");
+  setStatus("Creating five hairstyle variations.");
 
   try {
     const imageBase64 = await getSelectedImageDataUrl();
@@ -1735,7 +1841,7 @@ const handleRandomHairstyles = async () => {
     });
 
     renderGenerationResults(cards, results);
-    setStatus("Your 5 Nano Banana hairstyle variations are ready.");
+    setStatus("Your hairstyle variations are ready.");
   } catch (error) {
     const fallbackResults = selectedHairstyles.map((hairstyle) => ({
       name: hairstyle.name,
@@ -1818,7 +1924,7 @@ const handleTemplateNext = async () => {
     imageUrl: sourcePreviewUrl,
     kicker: "Selected Photo",
     title: "Generating your chosen template looks",
-    text: "The original photo is being used as the source while Nano Banana matches it to the selected templates."
+    text: "The original photo is being used to create the selected hairstyle looks."
   });
   if (hasExistingResults) {
     scrollToResultBatch(batchAnchor || cards[0]);
@@ -1826,7 +1932,7 @@ const handleTemplateNext = async () => {
     scrollToGenerationPanel();
   }
   setBusyState(true);
-  setStatus("Generating your selected template looks. In test mode, the original image will be shown.");
+  setStatus("Creating your selected hairstyle looks.");
 
   try {
     const imageBase64 = await getSelectedImageDataUrl();
@@ -1859,10 +1965,6 @@ const handleTemplateNext = async () => {
 };
 
 captureButton.addEventListener("click", openPicker);
-
-if (window.location.protocol === "file:") {
-  setStatus("Open the app through http://localhost:3013 after running npm start. Opening index.html directly can block API requests.");
-}
 
 const restoreCapturedSalonPhoto = () => {
   const storedPhoto = sessionStorage.getItem(CAPTURED_PHOTO_STORAGE_KEY);
