@@ -1,5 +1,7 @@
 const captureButton = document.getElementById("captureButton");
+const uploadButton = document.getElementById("uploadButton");
 const photoInput = document.getElementById("photoInput");
+const uploadPhotoInput = document.getElementById("uploadPhotoInput");
 const captureStep = document.getElementById("captureStep");
 const previewPanel = document.getElementById("previewPanel");
 const photoPreview = document.getElementById("photoPreview");
@@ -80,6 +82,9 @@ const DEFAULT_VARIATION_HAIR_COLOR = "#9b5b4b";
 const LIGHTBOX_MARKUP_COLOR = "#d62f2f";
 const LIGHTBOX_MARKUP_DRAW_SIZE = 4;
 const LIGHTBOX_MARKUP_ERASE_SIZE = 18;
+const IMAGE_TRANSFER_MAX_DIMENSION = 1600;
+const IMAGE_TRANSFER_QUALITY = 0.86;
+const IMAGE_TRANSFER_MIME_TYPE = "image/jpeg";
 const COMMON_HAIR_COLORS = [
   {
     hex: "#171311",
@@ -115,6 +120,7 @@ const COMMON_HAIR_COLORS = [
 
 let previewUrl = "";
 let isGenerating = false;
+let lastImageSelectionSource = "camera";
 let templateStyles = [];
 let templateMetadataCatalogPromise = null;
 let selectedTemplateIds = new Set();
@@ -202,7 +208,9 @@ const summarizeConsoleResultCard = (result) => ({
   id: String(result?.id || ""),
   name: String(result?.name || ""),
   imagePath: getResultConsolePath(result),
-  error: String(result?.errorMessage || "")
+  error: String(result?.errorMessage || ""),
+  errorReason: String(result?.errorReason || ""),
+  errorDetails: String(result?.errorDetails || "")
 });
 
 const logBrowserGenerationInput = (requestName, input) => {
@@ -242,10 +250,15 @@ const requestGenerationJson = async ({
 
     if (!response.ok) {
       const error = new Error(payload.error || fallbackErrorMessage);
+      error.status = response.status;
+      error.reason = payload.reason || "";
+      error.details = payload.details || "";
       logBrowserGenerationOutput(requestName, {
         ok: false,
         status: response.status,
-        error: error.message
+        error: error.message,
+        reason: error.reason,
+        details: error.details
       });
       throw error;
     }
@@ -260,7 +273,10 @@ const requestGenerationJson = async ({
     if (!error.loggedToBrowserConsole) {
       logBrowserGenerationOutput(requestName, {
         ok: false,
-        error: error.message || fallbackErrorMessage
+        status: error.status || 0,
+        error: error.message || fallbackErrorMessage,
+        reason: error.reason || "",
+        details: error.details || ""
       });
       error.loggedToBrowserConsole = true;
     }
@@ -882,6 +898,7 @@ const setBusyState = (busy) => {
   nextButton.disabled = busy;
   retakeButton.disabled = busy;
   captureButton.disabled = busy;
+  uploadButton.disabled = busy;
   templateBackButton.disabled = busy;
   templatePrompt.disabled = busy;
   generateViewsButton.disabled = busy;
@@ -890,17 +907,40 @@ const setBusyState = (busy) => {
   syncTemplateNextButtonVisibility();
 };
 
-const openPicker = async () => {
-  if (typeof photoInput.showPicker === "function") {
+const openInputPicker = async (inputElement) => {
+  if (!inputElement) {
+    return;
+  }
+
+  if (typeof inputElement.showPicker === "function") {
     try {
-      photoInput.showPicker();
+      inputElement.showPicker();
       return;
     } catch (error) {
       // Fall back to click for browsers that block the picker API.
     }
   }
 
-  photoInput.click();
+  inputElement.click();
+};
+
+const openCameraPicker = async () => {
+  lastImageSelectionSource = "camera";
+  await openInputPicker(photoInput);
+};
+
+const openUploadPicker = async () => {
+  lastImageSelectionSource = "upload";
+  await openInputPicker(uploadPhotoInput);
+};
+
+const reopenLastImagePicker = async () => {
+  if (lastImageSelectionSource === "upload") {
+    await openUploadPicker();
+    return;
+  }
+
+  await openCameraPicker();
 };
 
 const hasSelectedImage = () => Boolean(selectedImage);
@@ -982,6 +1022,7 @@ const resetToCaptureStep = () => {
   resetPreviewUrl();
   clearSelectedImage();
   photoInput.value = "";
+  uploadPhotoInput.value = "";
   photoPreview.removeAttribute("src");
   previewPanel.classList.add("is-hidden");
   optionPanel.classList.add("is-hidden");
@@ -1004,7 +1045,7 @@ const handleRetake = () => {
   }
 
   resetToCaptureStep();
-  openPicker();
+  reopenLastImagePicker();
 };
 
 const handleNext = () => {
@@ -1044,13 +1085,62 @@ const blobToDataUrl = (blob) => {
   });
 };
 
+const loadImageFromObjectUrl = (objectUrl) => {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Unable to process the selected image."));
+    image.src = objectUrl;
+  });
+};
+
+const optimizeImageBlobForTransfer = async (blob) => {
+  if (!(blob instanceof Blob) || !String(blob.type || "").startsWith("image/")) {
+    return blobToDataUrl(blob);
+  }
+
+  const objectUrl = URL.createObjectURL(blob);
+
+  try {
+    const image = await loadImageFromObjectUrl(objectUrl);
+    const sourceWidth = image.naturalWidth || image.width;
+    const sourceHeight = image.naturalHeight || image.height;
+
+    if (!sourceWidth || !sourceHeight) {
+      return blobToDataUrl(blob);
+    }
+
+    const scale = Math.min(1, IMAGE_TRANSFER_MAX_DIMENSION / Math.max(sourceWidth, sourceHeight));
+    const targetWidth = Math.max(1, Math.round(sourceWidth * scale));
+    const targetHeight = Math.max(1, Math.round(sourceHeight * scale));
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+
+    if (!context) {
+      return blobToDataUrl(blob);
+    }
+
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, targetWidth, targetHeight);
+    context.drawImage(image, 0, 0, targetWidth, targetHeight);
+    return canvas.toDataURL(IMAGE_TRANSFER_MIME_TYPE, IMAGE_TRANSFER_QUALITY);
+  } catch (_error) {
+    return blobToDataUrl(blob);
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+};
+
 const getSelectedImageDataUrl = async () => {
   if (!selectedImage) {
     throw new Error("Please take a picture before continuing.");
   }
 
   if (selectedImage.type === "file") {
-    return blobToDataUrl(selectedImage.file);
+    return optimizeImageBlobForTransfer(selectedImage.file);
   }
 
   const imageUrl = selectedImage.photo?.imageUrl;
@@ -1059,14 +1149,14 @@ const getSelectedImageDataUrl = async () => {
     throw new Error("The captured salon image is missing.");
   }
 
-  const response = await fetch(imageUrl.startsWith("http") ? imageUrl : `${API_BASE_URL}${imageUrl}`);
+  const response = await fetch(imageUrl.startsWith("http") ? imageUrl : `${API_BASE_URL}${imageUrl}`, { cache: "no-store" });
 
   if (!response.ok) {
     throw new Error("Unable to load the saved salon photo.");
   }
 
   const blob = await response.blob();
-  return blobToDataUrl(blob);
+  return optimizeImageBlobForTransfer(blob);
 };
 
 const getTemplateMetadataCatalog = async () => {
@@ -1150,7 +1240,7 @@ const getImageDataUrlFromUrl = async (imageUrl) => {
   }
 
   const blob = await response.blob();
-  return blobToDataUrl(blob);
+  return optimizeImageBlobForTransfer(blob);
 };
 
 const setGenerationHeading = (label, title) => {
@@ -1179,7 +1269,7 @@ const getTemplateCardMeta = (style) => {
     .map((key) => getTemplateAttribute(style, key))
     .filter(Boolean)
     .map(formatTemplateFilterValue)
-    .join(" • ");
+    .join(" / ");
 };
 
 const getAvailableTemplateFilterOptions = () => {
@@ -1262,25 +1352,42 @@ const updateTemplateFilterSummary = (visibleCount, totalCount) => {
 
   if (visibleCount === 0) {
     templateFilterSummary.textContent = activeFilters.length > 0
-      ? `No templates match. ${activeFilters.join(" • ")}`
+      ? `No templates match. ${activeFilters.join(" / ")}`
       : "No templates match the current filters.";
     return;
   }
 
   if (visibleCount === totalCount) {
     templateFilterSummary.textContent = activeFilters.length > 0
-      ? `Showing all ${totalCount} templates. ${activeFilters.join(" • ")}`
+      ? `Showing all ${totalCount} templates. ${activeFilters.join(" / ")}`
       : `Showing all ${totalCount} templates.`;
     return;
   }
 
   templateFilterSummary.textContent = activeFilters.length > 0
-    ? `Showing ${visibleCount} of ${totalCount} templates. ${activeFilters.join(" • ")}`
+    ? `Showing ${visibleCount} of ${totalCount} templates. ${activeFilters.join(" / ")}`
     : `Showing ${visibleCount} of ${totalCount} templates.`;
 };
 
 const getResultDescription = (result) => {
-  return result.sourcePrompt || result.finalPrompt || "Selected generated hairstyle result.";
+  return result.extraPrompt || result.sourcePrompt || "Selected generated hairstyle result.";
+};
+
+const clearElementChildren = (element) => {
+  while (element.firstChild) {
+    element.removeChild(element.firstChild);
+  }
+};
+
+const createTextElement = (tagName, className, text) => {
+  const element = document.createElement(tagName);
+
+  if (className) {
+    element.className = className;
+  }
+
+  element.textContent = text;
+  return element;
 };
 
 const createFollowUpCard = ({ title, imageUrl, alt, note, promptText, errorMessage, pending = false, onSelect = null }) => {
@@ -1344,7 +1451,6 @@ const createWorkspaceResultFromRelatedResult = (result, fallbackName = "Generate
   ...result,
   name: result?.name || fallbackName,
   sourcePrompt: result?.sourcePrompt || fallbackDescription,
-  finalPrompt: result?.finalPrompt || "",
   followUpViews: Array.isArray(result?.followUpViews) ? result.followUpViews : [],
   promptVariationResult: result?.promptVariationResult || null,
   lastVariationPrompt: result?.lastVariationPrompt || "",
@@ -1383,7 +1489,7 @@ const renderPromptVariationSection = (result) => {
       : promptVariationResult.hairColorReferenceKind === "swatch"
         ? "Reference: color swatch"
         : ""
-  ].filter(Boolean).join(" • ");
+  ].filter(Boolean).join(" / ");
 
   promptVariationGrid.appendChild(createFollowUpCard({
     title: promptVariationResult.name || "Prompt Variation",
@@ -1537,12 +1643,11 @@ const renderTemplateGrid = () => {
   templateFilterReset.disabled = TEMPLATE_FILTER_DEFINITIONS.every((definition) => !activeTemplateFilters[definition.id]);
 
   if (filteredStyles.length === 0) {
-    templateGrid.innerHTML = `
-      <article class="template-empty-state">
-        <h3 class="template-empty-title">No templates match these filters</h3>
-        <p class="template-empty-copy">Clear one or more filters to see more hairstyle templates.</p>
-      </article>
-    `;
+    const emptyState = document.createElement("article");
+    emptyState.className = "template-empty-state";
+    emptyState.appendChild(createTextElement("h3", "template-empty-title", "No templates match these filters"));
+    emptyState.appendChild(createTextElement("p", "template-empty-copy", "Clear one or more filters to see more hairstyle templates."));
+    templateGrid.appendChild(emptyState);
     return;
   }
 
@@ -1550,29 +1655,35 @@ const renderTemplateGrid = () => {
     const card = document.createElement("article");
     const isSelected = selectedTemplateIds.has(style.id);
     const metaSummary = getTemplateCardMeta(style);
+    const check = createTextElement("span", "template-card-check", "\u2713");
+    const media = document.createElement("div");
+    const templateImage = document.createElement("img");
+    const content = document.createElement("div");
+    const title = createTextElement("h3", "template-card-name", style.name);
     card.className = `template-card${isSelected ? " is-selected" : ""}`;
     card.tabIndex = 0;
     card.setAttribute("role", "button");
     card.setAttribute("aria-pressed", String(isSelected));
-    card.innerHTML = `
-      <span class="template-card-check">&#10003;</span>
-      <div class="template-card-media">
-        <img src="${style.imageUrl}" alt="${style.name} hairstyle template" loading="lazy" decoding="async">
-      </div>
-      <div>
-        <h3 class="template-card-name">${style.name}</h3>
-        ${metaSummary ? `<p class="template-card-meta">${metaSummary}</p>` : ""}
-      </div>
-    `;
+    media.className = "template-card-media";
+    templateImage.src = style.imageUrl;
+    templateImage.alt = `${style.name} hairstyle template`;
+    templateImage.loading = "lazy";
+    templateImage.decoding = "async";
+    media.appendChild(templateImage);
+    content.appendChild(title);
 
-    const templateImage = card.querySelector(".template-card-media img");
+    if (metaSummary) {
+      content.appendChild(createTextElement("p", "template-card-meta", metaSummary));
+    }
 
-    if (templateImage) {
-      templateImage.addEventListener("load", () => syncTemplateCardSize(card, templateImage));
+    card.appendChild(check);
+    card.appendChild(media);
+    card.appendChild(content);
 
-      if (templateImage.complete) {
-        syncTemplateCardSize(card, templateImage);
-      }
+    templateImage.addEventListener("load", () => syncTemplateCardSize(card, templateImage));
+
+    if (templateImage.complete) {
+      syncTemplateCardSize(card, templateImage);
     }
 
     card.addEventListener("click", () => toggleTemplateSelection(style.id));
@@ -1589,18 +1700,24 @@ const renderTemplateGrid = () => {
 
 const createResultCard = (hairstyle) => {
   const card = document.createElement("article");
+  const media = document.createElement("div");
+  const body = document.createElement("div");
+  const titleRow = document.createElement("div");
+  const title = createTextElement("h3", "result-card-title", hairstyle.name);
+  const badge = createTextElement("span", "result-badge", "Queued");
+  const description = createTextElement("p", "result-description", hairstyle.prompt);
+  const note = createTextElement("p", "result-note", "Preparing this look now.");
   card.className = "result-card";
-  card.innerHTML = `
-    <div class="result-card-media"></div>
-    <div class="result-card-body">
-      <div class="result-card-title-row">
-        <h3 class="result-card-title">${hairstyle.name}</h3>
-        <span class="result-badge">Queued</span>
-      </div>
-      <p class="result-description">${hairstyle.prompt}</p>
-      <p class="result-note">Preparing this look now.</p>
-    </div>
-  `;
+  media.className = "result-card-media";
+  body.className = "result-card-body";
+  titleRow.className = "result-card-title-row";
+  titleRow.appendChild(title);
+  titleRow.appendChild(badge);
+  body.appendChild(titleRow);
+  body.appendChild(description);
+  body.appendChild(note);
+  card.appendChild(media);
+  card.appendChild(body);
 
   resultGrid.appendChild(card);
   return card;
@@ -1608,24 +1725,13 @@ const createResultCard = (hairstyle) => {
 
 const createResultBatchDivider = ({ label, title }) => {
   const divider = document.createElement("div");
+  const labelElement = createTextElement("p", "result-batch-label", label);
+  const titleElement = createTextElement("h3", "result-batch-title", title);
   divider.className = "result-batch-divider";
-  divider.innerHTML = `
-    <p class="result-batch-label">${label}</p>
-    <h3 class="result-batch-title">${title}</h3>
-  `;
+  divider.appendChild(labelElement);
+  divider.appendChild(titleElement);
   resultGrid.appendChild(divider);
   return divider;
-};
-
-const addPromptBlock = (card, promptText) => {
-  if (card.querySelector(".result-prompt")) {
-    return;
-  }
-
-  const promptBlock = document.createElement("p");
-  promptBlock.className = "result-prompt";
-  promptBlock.textContent = promptText;
-  card.querySelector(".result-card-body").appendChild(promptBlock);
 };
 
 const updateResultCard = (card, result) => {
@@ -1636,9 +1742,13 @@ const updateResultCard = (card, result) => {
 
   card.resultData = result;
   description.textContent = getResultDescription(result);
+  clearElementChildren(media);
 
   if (result.imageUrl) {
-    media.innerHTML = `<img src="${result.imageUrl}" alt="${result.name} generated hairstyle result">`;
+    const image = document.createElement("img");
+    image.src = result.imageUrl;
+    image.alt = `${result.name} generated hairstyle result`;
+    media.appendChild(image);
     media.classList.add("has-image");
     badge.textContent = "Ready";
     badge.classList.remove("warning");
@@ -1654,7 +1764,6 @@ const updateResultCard = (card, result) => {
   badge.classList.remove("success");
   badge.classList.add("warning");
   note.textContent = result.errorMessage || "We couldn't prepare this look right now.";
-  addPromptBlock(card, result.finalPrompt);
 };
 
 const renderGenerationResults = (cards, results) => {
@@ -2022,7 +2131,6 @@ const handleRandomHairstyles = async () => {
     const fallbackResults = selectedHairstyles.map((hairstyle) => ({
       name: hairstyle.name,
       sourcePrompt: hairstyle.prompt,
-      finalPrompt: hairstyle.prompt,
       errorMessage: error.message
     }));
 
@@ -2127,7 +2235,6 @@ const handleTemplateNext = async () => {
     const fallbackResults = selectedTemplates.map((template) => ({
       name: template.name,
       sourcePrompt: template.prompt,
-      finalPrompt: `${template.prompt} ${extraPrompt}`.trim(),
       errorMessage: error.message
     }));
 
@@ -2140,7 +2247,8 @@ const handleTemplateNext = async () => {
   }
 };
 
-captureButton.addEventListener("click", openPicker);
+captureButton.addEventListener("click", openCameraPicker);
+uploadButton.addEventListener("click", openUploadPicker);
 
 const restoreCapturedSalonPhoto = () => {
   const storedPhoto = sessionStorage.getItem(CAPTURED_PHOTO_STORAGE_KEY);
@@ -2174,15 +2282,14 @@ const restoreCapturedSalonPhoto = () => {
   }
 };
 
-photoInput.addEventListener("change", () => {
-  const [selectedFile] = photoInput.files;
-
+const handleSelectedPhotoFile = (selectedFile, source = "camera") => {
   if (!selectedFile) {
     clearSelectedImage();
     setStatus("");
     return;
   }
 
+  lastImageSelectionSource = source;
   resetPreviewUrl();
   setSelectedFileImage(selectedFile);
   previewUrl = URL.createObjectURL(selectedFile);
@@ -2190,6 +2297,16 @@ photoInput.addEventListener("change", () => {
   hideGenerationPanel();
   showPreviewStep();
   setStatus(`Selected: ${selectedFile.name}`);
+};
+
+photoInput.addEventListener("change", () => {
+  const [selectedFile] = photoInput.files;
+  handleSelectedPhotoFile(selectedFile, "camera");
+});
+
+uploadPhotoInput.addEventListener("change", () => {
+  const [selectedFile] = uploadPhotoInput.files;
+  handleSelectedPhotoFile(selectedFile, "upload");
 });
 
 retakeButton.addEventListener("click", handleRetake);

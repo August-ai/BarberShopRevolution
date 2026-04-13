@@ -213,6 +213,48 @@ const serializeErrorForLog = (error) => ({
     stack: String(error?.stack || "")
 });
 
+const extractStructuredApiError = (error) => {
+    const rawMessage = getErrorText(error);
+
+    if (!rawMessage) {
+        return null;
+    }
+
+    try {
+        const parsed = JSON.parse(rawMessage);
+        const payload = parsed?.error || parsed;
+
+        if (!payload || typeof payload !== "object") {
+            return null;
+        }
+
+        return {
+            code: Number(payload.code || 0) || undefined,
+            message: String(payload.message || "").trim(),
+            status: String(payload.status || "").trim()
+        };
+    } catch (_error) {
+        return null;
+    }
+};
+
+const getErrorDetails = (error) => {
+    const providerFailureSummary = String(error?.providerFailureSummary || "").trim();
+
+    if (providerFailureSummary) {
+        return providerFailureSummary;
+    }
+
+    const structuredApiError = extractStructuredApiError(error);
+
+    if (structuredApiError?.message) {
+        return structuredApiError.message;
+    }
+
+    const rawMessage = getErrorText(error);
+    return rawMessage ? rawMessage.slice(0, 280) : "";
+};
+
 const delay = (milliseconds) => new Promise((resolve) => {
     setTimeout(resolve, milliseconds);
 });
@@ -291,6 +333,28 @@ const shouldRetryImageGenerationRequest = (error) => {
         "socket hang up",
         "temporarily unavailable"
     ].some((value) => combinedText.includes(value));
+};
+
+const shouldDisableThinkingConfigForModel = (modelName) => /image-preview/i.test(String(modelName || ""));
+
+const shouldRetryWithoutThinkingConfig = ({ error, thinkingLevel = "" }) => {
+    if (!thinkingLevel) {
+        return false;
+    }
+
+    const combinedText = [
+        getErrorText(error),
+        getErrorDetails(error),
+        String(error?.providerFailureSummary || "")
+    ].join(" ").toLowerCase();
+
+    return (
+        combinedText.includes("thinking level") &&
+        combinedText.includes("not supported")
+    ) || (
+        combinedText.includes("thinkingconfig") &&
+        combinedText.includes("invalid")
+    );
 };
 
 const summarizeImagePayloadsForLog = (imageDataUrls = []) => {
@@ -771,8 +835,13 @@ const buildPromptVariationPrompt = ({
     hairColorHex,
     hairColorLabel,
     hasHairColorReference,
-    hairColorReferenceKind = ""
+    hairColorReferenceKind = "",
+    isHairColorOnlyPrompt = false
 }) => {
+    if (isHairColorOnlyPrompt) {
+        return extraPrompt;
+    }
+
     return [
         hasHairColorReference && hairColorReferenceKind === "portrait"
             ? "Replace image 1's hair with image 2."
@@ -801,12 +870,12 @@ const buildHairColorOnlyPrompt = ({
     hasHairColorReference,
     hairColorReferenceKind = ""
 }) => {
+    if (hasHairColorReference) {
+        return "Edit image 1 only. Match only the hair color in image 2 to image 1 and keep everything else in image 1 the same. Same person and same hairstyle as the original image 1, only the hair color is changed.";
+    }
+
     return [
-        hasHairColorReference && hairColorReferenceKind === "portrait"
-            ? "Replace image 1's hair color and hair type with image 2."
-            : hasHairColorReference
-                ? "Match only the hair color in image 1 to image 2."
-                : "Change the subject's hair color to the requested color.",
+        "Change the subject's hair color to the requested color.",
         "Keep everything else in image 1 the same, including the person, hairstyle shape, and background.",
         "Make it realistic and fitting well important!",
         hairColorLabel ? `Requested hair color name: ${hairColorLabel}.` : "",
@@ -899,29 +968,167 @@ const summarizeGenerateContentFailure = (response) => {
     return details.join("; ");
 };
 
+const getImageServiceErrorResponse = (error, fallbackMessage = "Something went wrong. Please try again.") => {
+    const combinedMessage = [
+        getErrorText(error),
+        String(error?.providerFailureSummary || ""),
+        String(error?.promptBlocked || "")
+    ].join(" ").toLowerCase();
+    const details = getErrorDetails(error);
+
+    if (
+        combinedMessage.includes("thinking level") &&
+        combinedMessage.includes("not supported")
+    ) {
+        return {
+            statusCode: 400,
+            message: "This image model does not support the requested reasoning setting.",
+            reason: "unsupported_thinking_level",
+            details
+        };
+    }
+
+    if (
+        combinedMessage.includes("promptblocked") ||
+        combinedMessage.includes("blocked") ||
+        combinedMessage.includes("finishreason=safety") ||
+        combinedMessage.includes("finishreason=prohibited_content") ||
+        combinedMessage.includes("finishreason=blocklist") ||
+        combinedMessage.includes("safety")
+    ) {
+        return {
+            statusCode: 422,
+            message: "The image service blocked this request. Try a different photo, reference image, or prompt.",
+            reason: "image_service_blocked",
+            details
+        };
+    }
+
+    if (
+        combinedMessage.includes("resource exhausted") ||
+        combinedMessage.includes("quota") ||
+        combinedMessage.includes("rate limit") ||
+        combinedMessage.includes("too many requests") ||
+        combinedMessage.includes("429")
+    ) {
+        return {
+            statusCode: 503,
+            message: "The image service is busy right now. Please wait a moment and try again.",
+            reason: "image_service_busy",
+            details
+        };
+    }
+
+    if (
+        combinedMessage.includes("timed out") ||
+        combinedMessage.includes("timeout") ||
+        combinedMessage.includes("deadline expired") ||
+        combinedMessage.includes("deadline exceeded") ||
+        combinedMessage.includes("etimedout") ||
+        combinedMessage.includes("aborterror")
+    ) {
+        return {
+            statusCode: 504,
+            message: "The image service took too long to finish this image. Please try again.",
+            reason: "image_service_timeout",
+            details
+        };
+    }
+
+    if (
+        combinedMessage.includes("fetch failed") ||
+        combinedMessage.includes("network") ||
+        combinedMessage.includes("\"status\":\"unavailable\"") ||
+        combinedMessage.includes("service unavailable") ||
+        combinedMessage.includes(" unavailable") ||
+        combinedMessage.includes("econnreset") ||
+        combinedMessage.includes("eai_again") ||
+        combinedMessage.includes("enotfound") ||
+        combinedMessage.includes("socket hang up")
+    ) {
+        return {
+            statusCode: 503,
+            message: "The image service is temporarily unavailable. Please try again in a moment.",
+            reason: "image_service_unavailable",
+            details
+        };
+    }
+
+    if (
+        combinedMessage.includes("did not return an image") ||
+        combinedMessage.includes("finishreason=") ||
+        combinedMessage.includes("candidatecount=")
+    ) {
+        return {
+            statusCode: 502,
+            message: "The image service returned no image for this request. Please try again or use a different reference.",
+            reason: "image_service_no_image",
+            details
+        };
+    }
+
+    return {
+        statusCode: Number(error?.statusCode || 500),
+        message: fallbackMessage,
+        reason: "image_service_error",
+        details
+    };
+};
+
 const getPublicErrorResponse = (error, fallbackMessage = "Something went wrong. Please try again.") => {
+    if (error?.providerFailureSummary || error?.promptBlocked) {
+        return getImageServiceErrorResponse(error, fallbackMessage);
+    }
+
+    const structuredApiError = extractStructuredApiError(error);
+
     if (error?.publicMessage) {
         return {
             statusCode: Number(error.statusCode || 500),
-            message: error.publicMessage
+            message: error.publicMessage,
+            reason: "public_error",
+            details: getErrorDetails(error)
         };
     }
 
     if (error?.type === "entity.too.large") {
         return {
             statusCode: 413,
-            message: "That image is too large. Please choose a smaller one and try again."
+            message: "That image is too large. Please choose a smaller one and try again.",
+            reason: "image_too_large",
+            details: getErrorDetails(error)
         };
     }
 
     if (error instanceof SyntaxError && Object.prototype.hasOwnProperty.call(error, "body")) {
         return {
             statusCode: 400,
-            message: "We couldn't read that request. Please try again."
+            message: "We couldn't read that request. Please try again.",
+            reason: "invalid_json",
+            details: getErrorDetails(error)
         };
     }
 
     const message = getErrorText(error).toLowerCase();
+
+    if (
+        message.includes("thinking level") &&
+        message.includes("not supported")
+    ) {
+        return getImageServiceErrorResponse(error, fallbackMessage);
+    }
+
+    if (
+        structuredApiError?.status === "INVALID_ARGUMENT" ||
+        message.includes("\"status\":\"invalid_argument\"")
+    ) {
+        return {
+            statusCode: 400,
+            message: structuredApiError?.message || "The image request included an unsupported setting.",
+            reason: "invalid_argument",
+            details: getErrorDetails(error)
+        };
+    }
 
     if (
         message.includes("missing gemini_api_key") ||
@@ -935,7 +1142,9 @@ const getPublicErrorResponse = (error, fallbackMessage = "Something went wrong. 
     ) {
         return {
             statusCode: 503,
-            message: "Image creation is not available right now. Please try again later."
+            message: "Image creation is not available right now. Please try again later.",
+            reason: "invalid_api_key",
+            details: getErrorDetails(error)
         };
     }
 
@@ -948,7 +1157,9 @@ const getPublicErrorResponse = (error, fallbackMessage = "Something went wrong. 
     ) {
         return {
             statusCode: 503,
-            message: "Image creation is busy right now. Please wait a moment and try again."
+            message: "Image creation is busy right now. Please wait a moment and try again.",
+            reason: "image_creation_busy",
+            details: getErrorDetails(error)
         };
     }
 
@@ -960,7 +1171,9 @@ const getPublicErrorResponse = (error, fallbackMessage = "Something went wrong. 
     ) {
         return {
             statusCode: 503,
-            message: "Image creation is temporarily unavailable. Please try again later."
+            message: "Image creation is temporarily unavailable. Please try again later.",
+            reason: "model_unavailable",
+            details: getErrorDetails(error)
         };
     }
 
@@ -974,7 +1187,9 @@ const getPublicErrorResponse = (error, fallbackMessage = "Something went wrong. 
     ) {
         return {
             statusCode: 504,
-            message: "This request took too long. Please try again."
+            message: "This request took too long. Please try again.",
+            reason: "request_timeout",
+            details: getErrorDetails(error)
         };
     }
 
@@ -991,7 +1206,9 @@ const getPublicErrorResponse = (error, fallbackMessage = "Something went wrong. 
     ) {
         return {
             statusCode: 503,
-            message: "We couldn't reach the image service. Please try again in a moment."
+            message: "We couldn't reach the image service. Please try again in a moment.",
+            reason: "image_service_unreachable",
+            details: getErrorDetails(error)
         };
     }
 
@@ -1005,7 +1222,9 @@ const getPublicErrorResponse = (error, fallbackMessage = "Something went wrong. 
     ) {
         return {
             statusCode: 422,
-            message: "We couldn't create that image from the current request. Try a different photo or prompt."
+            message: "We couldn't create that image from the current request. Try a different photo or prompt.",
+            reason: "request_blocked",
+            details: getErrorDetails(error)
         };
     }
 
@@ -1014,10 +1233,7 @@ const getPublicErrorResponse = (error, fallbackMessage = "Something went wrong. 
         message.includes("finishreason=") ||
         message.includes("candidatecount=")
     ) {
-        return {
-            statusCode: 502,
-            message: "We couldn't finish that image. Please try again."
-        };
+        return getImageServiceErrorResponse(error, fallbackMessage);
     }
 
     if (
@@ -1031,7 +1247,9 @@ const getPublicErrorResponse = (error, fallbackMessage = "Something went wrong. 
     ) {
         return {
             statusCode: 400,
-            message: "Please choose a valid image and try again."
+            message: "Please choose a valid image and try again.",
+            reason: "invalid_image",
+            details: getErrorDetails(error)
         };
     }
 
@@ -1043,19 +1261,23 @@ const getPublicErrorResponse = (error, fallbackMessage = "Something went wrong. 
     ) {
         return {
             statusCode: 503,
-            message: "A required asset is temporarily unavailable. Please try again later."
+            message: "A required asset is temporarily unavailable. Please try again later.",
+            reason: "required_asset_unavailable",
+            details: getErrorDetails(error)
         };
     }
 
     return {
         statusCode: Number(error?.statusCode || 500),
-        message: fallbackMessage
+        message: fallbackMessage,
+        reason: "unknown_error",
+        details: getErrorDetails(error)
     };
 };
 
 const respondWithPublicError = (res, error, logLabel, fallbackMessage) => {
     console.error(logLabel, error);
-    const { statusCode, message } = getPublicErrorResponse(error, fallbackMessage);
+    const { statusCode, message, reason, details } = getPublicErrorResponse(error, fallbackMessage);
     writeAppLog({
         level: "ERROR",
         category: "request-error",
@@ -1063,10 +1285,12 @@ const respondWithPublicError = (res, error, logLabel, fallbackMessage) => {
         data: {
             statusCode,
             publicMessage: message,
+            reason,
+            details,
             error: serializeErrorForLog(error)
         }
     });
-    return res.status(statusCode).json({ error: message });
+    return res.status(statusCode).json({ error: message, reason, details });
 };
 
 const shouldRetryHairColorWithSwatchFallback = ({
@@ -1340,7 +1564,8 @@ const generateImageVariation = async({
     savePrefix,
     referenceImageDataUrl = "",
     referenceImageDataUrls = [],
-    useFacialFit = false
+    useFacialFit = false,
+    thinkingLevel = ""
 }) => {
     const normalizedReferenceImages = [...referenceImageDataUrls];
 
@@ -1407,6 +1632,20 @@ const generateImageVariation = async({
     const mimeType = getMimeTypeFromDataUrl(effectiveImageBase64);
     const base64Payload = getBase64Payload(effectiveImageBase64);
     const ai = getGoogleClient();
+    let effectiveThinkingLevel = shouldDisableThinkingConfigForModel(MODEL_NAME) ? "" : thinkingLevel;
+
+    if (thinkingLevel && !effectiveThinkingLevel) {
+        writeImageGeneratorLog({
+            level: "INFO",
+            category: "thinking-config",
+            message: "Skipping explicit thinking configuration because the current image model does not support it.",
+            data: {
+                requestLabel: savePrefix || "",
+                model: MODEL_NAME,
+                requestedThinkingLevel: thinkingLevel
+            }
+        });
+    }
 
     normalizedReferenceImages
         .filter(Boolean)
@@ -1452,7 +1691,12 @@ const generateImageVariation = async({
                 model: MODEL_NAME,
                 contents,
                 config: {
-                    responseModalities: ["TEXT", "IMAGE"]
+                    responseModalities: ["TEXT", "IMAGE"],
+                    ...(effectiveThinkingLevel ? {
+                        thinkingConfig: {
+                            thinkingLevel: effectiveThinkingLevel
+                        }
+                    } : {})
                 }
             });
 
@@ -1496,6 +1740,23 @@ const generateImageVariation = async({
             };
         } catch (error) {
             lastError = error;
+
+            if (shouldRetryWithoutThinkingConfig({ error, thinkingLevel: effectiveThinkingLevel })) {
+                writeImageGeneratorLog({
+                    level: "WARN",
+                    category: "thinking-config",
+                    message: "Retrying without explicit thinking configuration because the model rejected it.",
+                    data: {
+                        requestLabel: savePrefix || "",
+                        model: MODEL_NAME,
+                        rejectedThinkingLevel: effectiveThinkingLevel,
+                        details: getErrorDetails(error)
+                    }
+                });
+                effectiveThinkingLevel = "";
+                continue;
+            }
+
             const shouldRetry = attemptNumber < IMAGE_GENERATION_MAX_ATTEMPTS && shouldRetryImageGenerationRequest(error);
 
             if (shouldRetry) {
@@ -1653,12 +1914,12 @@ app.post("/api/random-hairstyles", async(req, res) => {
                     id: hairstyle.id,
                     name: hairstyle.name,
                     sourcePrompt: hairstyle.prompt,
-                    finalPrompt,
                     imageUrl: result.imageUrl,
                     savedFile: result.savedFile,
                     testMode: result.testMode
                 });
             } catch (error) {
+                const errorResponse = getPublicErrorResponse(error, "We couldn't create this look right now.");
                 logGenerationFailure({
                     route: "/api/random-hairstyles",
                     stage: "hairstyle-option",
@@ -1674,8 +1935,9 @@ app.post("/api/random-hairstyles", async(req, res) => {
                     id: hairstyle.id,
                     name: hairstyle.name,
                     sourcePrompt: hairstyle.prompt,
-                    finalPrompt,
-                    errorMessage: getPublicErrorResponse(error, "We couldn't create this look right now.").message
+                    errorMessage: errorResponse.message,
+                    errorReason: errorResponse.reason || "",
+                    errorDetails: errorResponse.details || ""
                 });
             }
         }
@@ -1753,7 +2015,6 @@ app.post("/api/template-hairstyles", async(req, res) => {
                     id: resolvedTemplate.id,
                     name: resolvedTemplate.name,
                     sourcePrompt: resolvedTemplate.prompt,
-                    finalPrompt,
                     imageUrl: result.imageUrl,
                     savedFile: result.savedFile,
                     testMode: result.testMode,
@@ -1761,6 +2022,7 @@ app.post("/api/template-hairstyles", async(req, res) => {
                     referenceImageVariant
                 });
             } catch (error) {
+                const errorResponse = getPublicErrorResponse(error, "We couldn't create this look right now.");
                 logGenerationFailure({
                     route: "/api/template-hairstyles",
                     stage: "template-option",
@@ -1779,8 +2041,9 @@ app.post("/api/template-hairstyles", async(req, res) => {
                     id: resolvedTemplate.id || template.id || normalizeStyleKey(template.filename),
                     name: resolvedTemplate.name || template.name || formatStyleName(template.filename),
                     sourcePrompt: resolvedTemplate.prompt || template.prompt || "",
-                    finalPrompt,
-                    errorMessage: getPublicErrorResponse(error, "We couldn't create this look right now.").message
+                    errorMessage: errorResponse.message,
+                    errorReason: errorResponse.reason || "",
+                    errorDetails: errorResponse.details || ""
                 });
             }
         }
@@ -1828,19 +2091,20 @@ app.post("/api/generated-hairstyle-views", async(req, res) => {
                 const result = await generateImageVariation({
                     imageBase64,
                     prompt: finalPrompt,
-                    savePrefix: `${normalizeStyleKey(lookName)}-${view.id}`
+                    savePrefix: `${normalizeStyleKey(lookName)}-${view.id}`,
+                    thinkingLevel: "LOW"
                 });
 
                 results.push({
                     id: view.id,
                     name: view.name,
                     sourcePrompt: lookDescription || "",
-                    finalPrompt,
                     imageUrl: result.imageUrl,
                     savedFile: result.savedFile,
                     testMode: result.testMode
                 });
             } catch (error) {
+                const errorResponse = getPublicErrorResponse(error, "We couldn't create this view right now.");
                 logGenerationFailure({
                     route: "/api/generated-hairstyle-views",
                     stage: "rear-view",
@@ -1858,8 +2122,9 @@ app.post("/api/generated-hairstyle-views", async(req, res) => {
                     id: view.id,
                     name: view.name,
                     sourcePrompt: lookDescription || "",
-                    finalPrompt,
-                    errorMessage: getPublicErrorResponse(error, "We couldn't create this view right now.").message
+                    errorMessage: errorResponse.message,
+                    errorReason: errorResponse.reason || "",
+                    errorDetails: errorResponse.details || ""
                 });
             }
         }
@@ -1907,6 +2172,11 @@ app.post("/api/generated-hairstyle-variation", async(req, res) => {
         }
 
         const runVariationAttempt = async(referenceImageDataUrl, referenceKind) => {
+            const isHairColorOnlyPrompt = !normalizedExtraPrompt && Boolean(
+                normalizedHairColorHex ||
+                normalizedHairColorLabel ||
+                referenceImageDataUrl
+            );
             const effectiveExtraPrompt = normalizedExtraPrompt || buildHairColorOnlyPrompt({
                 hairColorHex: normalizedHairColorHex,
                 hairColorLabel: normalizedHairColorLabel,
@@ -1920,7 +2190,8 @@ app.post("/api/generated-hairstyle-variation", async(req, res) => {
                 hairColorHex: normalizedHairColorHex,
                 hairColorLabel: normalizedHairColorLabel,
                 hasHairColorReference: Boolean(referenceImageDataUrl),
-                hairColorReferenceKind: referenceKind
+                hairColorReferenceKind: referenceKind,
+                isHairColorOnlyPrompt
             });
             const result = await generateImageVariation({
                 imageBase64,
@@ -2010,7 +2281,6 @@ app.post("/api/generated-hairstyle-variation", async(req, res) => {
                 id: `${normalizeStyleKey(lookName)}-variation`,
                 name: `${lookName} Prompt Variation`,
                 sourcePrompt: lookDescription || "",
-                finalPrompt: variationAttempt.finalPrompt,
                 extraPrompt: normalizedExtraPrompt,
                 hairColorHex: normalizedHairColorHex,
                 hairColorLabel: normalizedHairColorLabel,
@@ -2041,6 +2311,14 @@ app.post("/api/hair-mask", async(req, res) => {
     } catch (error) {
         return respondWithPublicError(res, error, "Hair segmentation failed:", "We couldn't prepare the hair color tools right now. Please try again later.");
     }
+});
+
+app.use("/api", (_req, res) => {
+    res.status(404).json({
+        error: "That API route was not found.",
+        reason: "api_route_not_found",
+        details: "The requested API endpoint does not exist."
+    });
 });
 
 app.use((error, _req, res, next) => {

@@ -1,1 +1,59 @@
 Log initialized. Image generator error entries will append below.
+[2026-04-13T19:03:18.982Z] [ERROR] [image-generator-error] Image Generator request failed.
+{
+  "timestamp": "2026-04-13T19:03:18.977Z",
+  "stage": "generate-content",
+  "attemptNumber": 1,
+  "maxAttempts": 3,
+  "model": "gemini-3.1-flash-image-preview",
+  "testMode": false,
+  "requestLabel": "long sleek cut with full blunt bangs-left-back-view",
+  "prompt": "Use the provided hairstyle image as the source image. Keep the exact same person and the exact same hairstyle from the source image. Preserve the haircut shape, length, layering, texture, density, and hair color. Keep the background unchanged. Do not redesign the hairstyle or change the person's identity. Make it realistic and fitting well important! Create a photorealistic salon-quality result. Rotate the viewpoint to show a left-back three-quarter view of the hairstyle. Make the back shape, layers, perimeter, and nape area clearly visible. Keep the styling polished and believable, as if photographed naturally from that new angle. Current hairstyle name: Long Sleek Cut With Full Blunt Bangs. Current hairstyle description: This hairstyle is a long, smooth cut with strong full bangs that sit just above the eyes and create a clean horizontal line across the forehead. The body of the hair falls sleek and straight with only soft beveling through the lower lengths. It looks glossy, dense, and very controlled, with the fringe as the main statement.",
+  "imageCount": 1,
+  "images": [
+    {
+      "role": "source",
+      "imageNumber": 1,
+      "mimeType": "image/jpeg",
+      "approxBytes": 529551
+    }
+  ],
+  "error": {
+    "name": "ApiError",
+    "message": "{\"error\":{\"code\":400,\"message\":\"Thinking level LOW is not supported for this model. Please retry with other thinking level.\",\"status\":\"INVALID_ARGUMENT\"}}",
+    "publicMessage": "",
+    "promptBlocked": "",
+    "providerFailureSummary": "",
+    "stack": "ApiError: {\"error\":{\"code\":400,\"message\":\"Thinking level LOW is not supported for this model. Please retry with other thinking level.\",\"status\":\"INVALID_ARGUMENT\"}}\n    at throwErrorIfNotOK (file:///C:/Users/alkhi/BarberShopRevolution/node_modules/@google/genai/dist/node/index.mjs:13341:30)\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async file:///C:/Users/alkhi/BarberShopRevolution/node_modules/@google/genai/dist/node/index.mjs:13044:13\n    at async Models.generateContent (file:///C:/Users/alkhi/BarberShopRevolution/node_modules/@google/genai/dist/node/index.mjs:14445:24)\n    at async generateImageVariation (file:///C:/Users/alkhi/BarberShopRevolution/server.js:1540:30)\n    at async file:///C:/Users/alkhi/BarberShopRevolution/server.js:1922:32"
+  }
+}
+
+[2026-04-13T19:03:19.389Z] [ERROR] [image-generator-error] Image Generator request failed.
+{
+  "timestamp": "2026-04-13T19:03:19.387Z",
+  "stage": "generate-content",
+  "attemptNumber": 1,
+  "maxAttempts": 3,
+  "model": "gemini-3.1-flash-image-preview",
+  "testMode": false,
+  "requestLabel": "long sleek cut with full blunt bangs-right-back-view",
+  "prompt": "Use the provided hairstyle image as the source image. Keep the exact same person and the exact same hairstyle from the source image. Preserve the haircut shape, length, layering, texture, density, and hair color. Keep the background unchanged. Do not redesign the hairstyle or change the person's identity. Make it realistic and fitting well important! Create a photorealistic salon-quality result. Rotate the viewpoint to show a right-back three-quarter view of the hairstyle. Make the back shape, layers, perimeter, and nape area clearly visible. Keep the styling polished and believable, as if photographed naturally from that new angle. Current hairstyle name: Long Sleek Cut With Full Blunt Bangs. Current hairstyle description: This hairstyle is a long, smooth cut with strong full bangs that sit just above the eyes and create a clean horizontal line across the forehead. The body of the hair falls sleek and straight with only soft beveling through the lower lengths. It looks glossy, dense, and very controlled, with the fringe as the main statement.",
+  "imageCount": 1,
+  "images": [
+    {
+      "role": "source",
+      "imageNumber": 1,
+      "mimeType": "image/jpeg",
+      "approxBytes": 529551
+    }
+  ],
+  "error": {
+    "name": "ApiError",
+    "message": "{\"error\":{\"code\":400,\"message\":\"Thinking level LOW is not supported for this model. Please retry with other thinking level.\",\"status\":\"INVALID_ARGUMENT\"}}",
+    "publicMessage": "",
+    "promptBlocked": "",
+    "providerFailureSummary": "",
+    "stack": "ApiError: {\"error\":{\"code\":400,\"message\":\"Thinking level LOW is not supported for this model. Please retry with other thinking level.\",\"status\":\"INVALID_ARGUMENT\"}}\n    at throwErrorIfNotOK (file:///C:/Users/alkhi/BarberShopRevolution/node_modules/@google/genai/dist/node/index.mjs:13341:30)\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async file:///C:/Users/alkhi/BarberShopRevolution/node_modules/@google/genai/dist/node/index.mjs:13044:13\n    at async Models.generateContent (file:///C:/Users/alkhi/BarberShopRevolution/node_modules/@google/genai/dist/node/index.mjs:14445:24)\n    at async generateImageVariation (file:///C:/Users/alkhi/BarberShopRevolution/server.js:1540:30)\n    at async file:///C:/Users/alkhi/BarberShopRevolution/server.js:1922:32"
+  }
+}
+

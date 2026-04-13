@@ -16,9 +16,13 @@
         <section class="hero-card">
             <p class="hero-kicker">The Future Of Salons</p>
             <div class="step-panel" id="captureStep">
-                <button class="capture-button" id="captureButton" type="button">Take Picture</button>
+                <div class="action-row">
+                    <button class="capture-button" id="captureButton" type="button">Take Picture</button>
+                    <button class="secondary-button" id="uploadButton" type="button">Upload Picture</button>
+                </div>
             </div>
             <input class="file-input" id="photoInput" type="file" accept="image/*" capture="environment">
+            <input class="file-input" id="uploadPhotoInput" type="file" accept="image/*">
             <section class="preview-panel is-hidden" id="previewPanel" aria-label="Selected photo preview">
                 <img class="photo-preview" id="photoPreview" alt="Uploaded portrait preview">
                 <div class="action-row">

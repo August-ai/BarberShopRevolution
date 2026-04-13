@@ -1350,16 +1350,6 @@ body.capture-page {
   font-size: 0.88rem;
 }
 
-.result-prompt {
-  margin: 0;
-  padding: 12px 14px;
-  border-radius: 16px;
-  background: #f6f6f3;
-  color: var(--text-primary);
-  font-size: 0.88rem;
-  line-height: 1.5;
-}
-
 .file-input {
   display: none;
 }
@@ -1487,6 +1477,10 @@ body.capture-page {
 
 .capture-success-panel .secondary-button {
   text-decoration: none;
+}
+
+.capture-success-actions #viewSavedPhotoLink {
+  grid-column: 1 / -1;
 }
 
 @media (max-width: 640px) {

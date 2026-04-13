@@ -19,8 +19,11 @@
       </p>
 
       <section class="capture-stage" id="captureStage">
-        <button class="capture-button" id="openCameraButton" type="button">Take Picture</button>
-        <p class="capture-helper">On mobile, this opens the camera. On desktop, it lets you choose an image.</p>
+        <div class="action-row">
+          <button class="capture-button" id="openCameraButton" type="button">Take Picture</button>
+          <button class="secondary-button" id="openUploadButton" type="button">Upload Picture</button>
+        </div>
+        <p class="capture-helper">Use the camera for a fresh portrait, or upload one from your phone or computer.</p>
       </section>
 
       <input
@@ -29,6 +32,12 @@
         type="file"
         accept="image/*"
         capture="environment"
+      >
+      <input
+        class="file-input"
+        id="uploadPhotoInput"
+        type="file"
+        accept="image/*"
       >
 
       <section class="capture-preview-panel is-hidden" id="previewStep" aria-label="Captured photo preview">
@@ -47,9 +56,10 @@
           <p class="capture-meta-line"><strong>Photo ID:</strong> <span id="savedPhotoId"></span></p>
           <p class="capture-meta-line"><strong>Stored:</strong> <span id="savedTimestamp"></span></p>
         </div>
-        <div class="action-row">
+        <div class="action-row capture-success-actions">
+          <button class="secondary-button secondary-button-dark" id="continueToSalonButton" type="button">Continue</button>
+          <button class="secondary-button" id="captureAnotherButton" type="button">Take Another</button>
           <a class="secondary-button" id="viewSavedPhotoLink" href="#" target="_blank" rel="noreferrer">Open Saved Image</a>
-          <button class="secondary-button secondary-button-dark" id="captureAnotherButton" type="button">Take Another</button>
         </div>
       </section>
 
