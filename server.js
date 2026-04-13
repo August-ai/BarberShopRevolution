@@ -367,23 +367,93 @@ const buildHairColorOnlyPrompt = ({ hairColorHex, hasHairColorReference }) => {
     ].filter(Boolean).join(" ");
 };
 
-const extractInlineImage = (response) => {
-    const parts = response?.candidates?.[0]?.content?.parts || [];
+const getPartInlineData = (part) => part?.inlineData || part?.inline_data || null;
 
-    for (const part of parts) {
-        if (part?.inlineData?.data) {
+const extractInlineImage = (response) => {
+    const candidates = Array.isArray(response?.candidates) ? response.candidates : [];
+
+    for (const candidate of candidates) {
+        const parts = Array.isArray(candidate?.content?.parts) ? candidate.content.parts : [];
+
+        for (const part of parts) {
+            const inlineData = getPartInlineData(part);
+            const mimeType = String(inlineData?.mimeType || inlineData?.mime_type || "").trim().toLowerCase();
+            const data = String(inlineData?.data || "").trim();
+
+            if (!data) {
+                continue;
+            }
+
             return {
-                mimeType: part.inlineData.mimeType || "image/png",
-                data: part.inlineData.data
+                mimeType: mimeType.startsWith("image/") ? mimeType : "image/png",
+                data
             };
         }
+    }
+
+    const fallbackData = typeof response?.data === "string" ? response.data.trim() : "";
+
+    if (fallbackData) {
+        return {
+            mimeType: "image/png",
+            data: fallbackData
+        };
     }
 
     return null;
 };
 
+const summarizeGenerateContentFailure = (response) => {
+    const details = [];
+    const promptBlockReason = String(response?.promptFeedback?.blockReason || "").trim();
+    const promptBlockMessage = String(response?.promptFeedback?.blockReasonMessage || "").trim();
+    const responseText = String(response?.text || "").trim().replace(/\s+/g, " ");
+    const modelVersion = String(response?.modelVersion || "").trim();
+    const candidates = Array.isArray(response?.candidates) ? response.candidates : [];
+    const finishReasons = [...new Set(
+        candidates
+        .map((candidate) => String(candidate?.finishReason || "").trim())
+        .filter(Boolean)
+    )];
+    const finishMessages = [...new Set(
+        candidates
+        .map((candidate) => String(candidate?.finishMessage || "").trim())
+        .filter(Boolean)
+    )];
+
+    if (modelVersion) {
+        details.push(`modelVersion=${modelVersion}`);
+    }
+
+    if (promptBlockReason) {
+        details.push(`promptBlocked=${promptBlockReason}`);
+    }
+
+    if (promptBlockMessage) {
+        details.push(`promptBlockMessage=${promptBlockMessage}`);
+    }
+
+    if (finishReasons.length > 0) {
+        details.push(`finishReason=${finishReasons.join(",")}`);
+    }
+
+    if (finishMessages.length > 0) {
+        details.push(`finishMessage=${finishMessages.join(" | ").slice(0, 240)}`);
+    }
+
+    if (responseText) {
+        details.push(`text=${responseText.slice(0, 280)}`);
+    }
+
+    if (details.length === 0) {
+        details.push(`candidateCount=${candidates.length}`);
+    }
+
+    return details.join("; ");
+};
+
 const writeGeneratedImage = (base64Data, mimeType, prefix) => {
-    const extension = mimeType === "image/jpeg" ? "jpg" : "png";
+    const extension = getExtensionFromMimeType(mimeType);
     const filename = `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${extension}`;
     const outputPath = path.join(generatedFolder, filename);
 
@@ -547,13 +617,18 @@ const generateImageVariation = async({ imageBase64, prompt, savePrefix, referenc
 
     const response = await ai.models.generateContent({
         model: MODEL_NAME,
-        contents
+        contents,
+        config: {
+            responseModalities: ["TEXT", "IMAGE"]
+        }
     });
 
     const imagePart = extractInlineImage(response);
 
     if (!imagePart) {
-        throw new Error("Nano Banana did not return an image.");
+        const failureSummary = summarizeGenerateContentFailure(response);
+        console.warn("Nano Banana returned no image.", failureSummary);
+        throw new Error(`Nano Banana did not return an image. ${failureSummary}`.trim());
     }
 
     const savedFile = writeGeneratedImage(imagePart.data, imagePart.mimeType, savePrefix);
