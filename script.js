@@ -134,6 +134,141 @@ const resolveHairColorPreviewUrl = (color) => (
   color.imageUrl.startsWith("http") ? color.imageUrl : `${API_BASE_URL}${color.imageUrl}`
 );
 
+const getStyleFilenameFromImageUrl = (imageUrl) => {
+  const normalizedImageUrl = String(imageUrl || "").trim();
+
+  if (!normalizedImageUrl.startsWith("/styles/")) {
+    return "";
+  }
+
+  return decodeURIComponent(normalizedImageUrl.slice("/styles/".length));
+};
+
+const normalizeConsolePath = (value, fallbackLabel = "") => {
+  const normalizedValue = String(value || "").trim();
+
+  if (!normalizedValue) {
+    return fallbackLabel;
+  }
+
+  if (normalizedValue.startsWith("data:image/")) {
+    return fallbackLabel || "inline image";
+  }
+
+  return normalizedValue;
+};
+
+const getSelectedImageConsolePath = () => {
+  if (!selectedImage) {
+    return "";
+  }
+
+  if (selectedImage.type === "file") {
+    return selectedImage.file?.name ? `local file: ${selectedImage.file.name}` : "local file";
+  }
+
+  return normalizeConsolePath(selectedImage.photo?.imageUrl || "", "saved salon photo");
+};
+
+const getResultConsolePath = (result) => {
+  if (!result) {
+    return "";
+  }
+
+  if (result.savedFile) {
+    return `/generated/${result.savedFile}`;
+  }
+
+  return normalizeConsolePath(result.imageUrl || "", "generated image");
+};
+
+const getHairColorReferenceConsolePath = ({
+  hairColorReferenceKind = "",
+  hairColorReferenceFilename = "",
+  hairColorHex = ""
+}) => {
+  if (hairColorReferenceKind === "portrait" && hairColorReferenceFilename) {
+    return `/styles/${hairColorReferenceFilename}`;
+  }
+
+  if (hairColorReferenceKind === "swatch" && hairColorHex) {
+    return `generated swatch ${String(hairColorHex).toUpperCase()}`;
+  }
+
+  return "";
+};
+
+const summarizeConsoleResultCard = (result) => ({
+  id: String(result?.id || ""),
+  name: String(result?.name || ""),
+  imagePath: getResultConsolePath(result),
+  error: String(result?.errorMessage || "")
+});
+
+const logBrowserGenerationInput = (requestName, input) => {
+  console.log("[Image Generator] input", {
+    request: requestName,
+    ...input
+  });
+};
+
+const logBrowserGenerationOutput = (requestName, output) => {
+  console.log("[Image Generator] output", {
+    request: requestName,
+    ...output
+  });
+};
+
+const requestGenerationJson = async ({
+  endpoint,
+  requestName,
+  requestBody,
+  inputSummary,
+  buildOutputSummary,
+  fallbackErrorMessage
+}) => {
+  logBrowserGenerationInput(requestName, inputSummary);
+
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    const payload = await response.json();
+
+    if (!response.ok) {
+      const error = new Error(payload.error || fallbackErrorMessage);
+      logBrowserGenerationOutput(requestName, {
+        ok: false,
+        status: response.status,
+        error: error.message
+      });
+      throw error;
+    }
+
+    logBrowserGenerationOutput(requestName, buildOutputSummary(payload, response));
+    return payload;
+  } catch (error) {
+    if (!(error instanceof Error)) {
+      throw error;
+    }
+
+    if (!error.loggedToBrowserConsole) {
+      logBrowserGenerationOutput(requestName, {
+        ok: false,
+        error: error.message || fallbackErrorMessage
+      });
+      error.loggedToBrowserConsole = true;
+    }
+
+    throw error;
+  }
+};
+
 const preloadCommonHairColorImages = () => {
   COMMON_HAIR_COLORS.forEach((color) => {
     const resolvedImageUrl = resolveHairColorPreviewUrl(color);
@@ -426,12 +561,13 @@ const getHairColorReferencePayload = async (hexColor) => {
 
   if (commonHairColor?.imageUrl) {
     try {
-      return {
-        hairColorLabel: commonHairColor.label,
-        hairColorReferenceImageBase64: await getImageDataUrlFromUrl(resolveHairColorPreviewUrl(commonHairColor)),
-        hairColorReferenceKind: "portrait"
-      };
-    } catch (_error) {
+    return {
+      hairColorLabel: commonHairColor.label,
+      hairColorReferenceImageBase64: await getImageDataUrlFromUrl(resolveHairColorPreviewUrl(commonHairColor)),
+      hairColorReferenceKind: "portrait",
+      hairColorReferenceFilename: getStyleFilenameFromImageUrl(commonHairColor.imageUrl)
+    };
+  } catch (_error) {
       // Fall back to a generated swatch if the reference portrait can't be loaded.
     }
   }
@@ -439,7 +575,8 @@ const getHairColorReferencePayload = async (hexColor) => {
   return {
     hairColorLabel: getVariationHairColorRequestLabel(normalizedHex),
     hairColorReferenceImageBase64: createHairColorSwatchDataUrl(normalizedHex),
-    hairColorReferenceKind: "swatch"
+    hairColorReferenceKind: "swatch",
+    hairColorReferenceFilename: ""
   };
 };
 
@@ -1527,66 +1664,84 @@ const renderGenerationResults = (cards, results) => {
 };
 
 const requestRandomHairstyles = async ({ imageBase64, hairstyles }) => {
-  const response = await fetch(`${API_BASE_URL}/api/random-hairstyles`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
+  const payload = await requestGenerationJson({
+    endpoint: "/api/random-hairstyles",
+    requestName: "random-hairstyles",
+    requestBody: {
       imageBase64,
       hairstyles
-    })
+    },
+    inputSummary: {
+      sourceImagePath: getSelectedImageConsolePath(),
+      hairstyles: hairstyles.map((hairstyle) => ({
+        id: hairstyle.id,
+        name: hairstyle.name,
+        prompt: hairstyle.prompt
+      }))
+    },
+    buildOutputSummary: (responsePayload, response) => ({
+      ok: true,
+      status: response.status,
+      results: (responsePayload.results || []).map(summarizeConsoleResultCard)
+    }),
+    fallbackErrorMessage: "Random hairstyle generation failed."
   });
-
-  const payload = await response.json();
-
-  if (!response.ok) {
-    throw new Error(payload.error || "Random hairstyle generation failed.");
-  }
 
   return payload.results || [];
 };
 
 const requestTemplateHairstyles = async ({ imageBase64, templates, extraPrompt }) => {
-  const response = await fetch(`${API_BASE_URL}/api/template-hairstyles`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
+  const payload = await requestGenerationJson({
+    endpoint: "/api/template-hairstyles",
+    requestName: "template-hairstyles",
+    requestBody: {
       imageBase64,
       templates,
       extraPrompt
-    })
+    },
+    inputSummary: {
+      sourceImagePath: getSelectedImageConsolePath(),
+      templates: templates.map((template) => ({
+        id: template.id,
+        name: template.name,
+        filename: template.filename,
+        imagePath: template.imageUrl || (template.filename ? `/styles/${template.filename}` : ""),
+        prompt: template.prompt
+      })),
+      extraPrompt
+    },
+    buildOutputSummary: (responsePayload, response) => ({
+      ok: true,
+      status: response.status,
+      results: (responsePayload.results || []).map(summarizeConsoleResultCard)
+    }),
+    fallbackErrorMessage: "Template hairstyle generation failed."
   });
-
-  const payload = await response.json();
-
-  if (!response.ok) {
-    throw new Error(payload.error || "Template hairstyle generation failed.");
-  }
 
   return payload.results || [];
 };
 
-const requestGeneratedHairstyleViews = async ({ imageBase64, lookName, lookDescription }) => {
-  const response = await fetch(`${API_BASE_URL}/api/generated-hairstyle-views`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
+const requestGeneratedHairstyleViews = async ({ imageBase64, lookName, lookDescription, sourceImagePath = "" }) => {
+  const payload = await requestGenerationJson({
+    endpoint: "/api/generated-hairstyle-views",
+    requestName: "generated-hairstyle-views",
+    requestBody: {
       imageBase64,
       lookName,
       lookDescription
-    })
+    },
+    inputSummary: {
+      sourceImagePath,
+      lookName,
+      lookDescription
+    },
+    buildOutputSummary: (responsePayload, response) => ({
+      ok: true,
+      status: response.status,
+      results: (responsePayload.results || []).map(summarizeConsoleResultCard)
+    }),
+    fallbackErrorMessage: "Unable to generate more views."
   });
-
-  const payload = await response.json();
-
-  if (!response.ok) {
-    throw new Error(payload.error || "Unable to generate more views.");
-  }
 
   return payload.results || [];
 };
@@ -1599,15 +1754,15 @@ const requestGeneratedHairstyleVariation = async ({
   hairColorHex = "",
   hairColorLabel = "",
   hairColorReferenceImageBase64 = "",
+  hairColorReferenceFilename = "",
   hairColorReferenceKind = "",
-  hairColorSwatchBase64 = ""
+  hairColorSwatchBase64 = "",
+  sourceImagePath = ""
 }) => {
-  const response = await fetch(`${API_BASE_URL}/api/generated-hairstyle-variation`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
+  const payload = await requestGenerationJson({
+    endpoint: "/api/generated-hairstyle-variation",
+    requestName: "generated-hairstyle-variation",
+    requestBody: {
       imageBase64,
       lookName,
       lookDescription,
@@ -1615,16 +1770,32 @@ const requestGeneratedHairstyleVariation = async ({
       hairColorHex,
       hairColorLabel,
       hairColorReferenceImageBase64,
+      hairColorReferenceFilename,
       hairColorReferenceKind,
       hairColorSwatchBase64
-    })
+    },
+    inputSummary: {
+      sourceImagePath,
+      referenceImagePath: getHairColorReferenceConsolePath({
+        hairColorReferenceKind,
+        hairColorReferenceFilename,
+        hairColorHex
+      }),
+      lookName,
+      lookDescription,
+      extraPrompt,
+      hairColorHex,
+      hairColorLabel,
+      hairColorReferenceFilename,
+      hairColorReferenceKind
+    },
+    buildOutputSummary: (responsePayload, response) => ({
+      ok: true,
+      status: response.status,
+      result: summarizeConsoleResultCard(responsePayload.result || {})
+    }),
+    fallbackErrorMessage: "Unable to generate a prompt variation."
   });
-
-  const payload = await response.json();
-
-  if (!response.ok) {
-    throw new Error(payload.error || "Unable to generate a prompt variation.");
-  }
 
   return payload.result || null;
 };
@@ -1654,7 +1825,8 @@ const handleGenerateViews = async () => {
     const results = await requestGeneratedHairstyleViews({
       imageBase64,
       lookName: resultReference.name,
-      lookDescription: getResultDescription(resultReference)
+      lookDescription: getResultDescription(resultReference),
+      sourceImagePath: getResultConsolePath(resultReference)
     });
 
     resultReference.followUpViews = results;
@@ -1743,12 +1915,14 @@ const handleGeneratePromptVariation = async () => {
     const {
       hairColorLabel,
       hairColorReferenceImageBase64,
+      hairColorReferenceFilename,
       hairColorReferenceKind
     } = hairColorHex
       ? await getHairColorReferencePayload(hairColorHex)
       : {
         hairColorLabel: "",
         hairColorReferenceImageBase64: "",
+        hairColorReferenceFilename: "",
         hairColorReferenceKind: ""
       };
 
@@ -1766,10 +1940,12 @@ const handleGeneratePromptVariation = async () => {
       imageBase64,
       lookName: resultReference.name,
       lookDescription: getResultDescription(resultReference),
+      sourceImagePath: getResultConsolePath(resultReference),
       extraPrompt,
       hairColorHex,
       hairColorLabel,
       hairColorReferenceImageBase64,
+      hairColorReferenceFilename,
       hairColorReferenceKind,
       hairColorSwatchBase64
     });

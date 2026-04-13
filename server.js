@@ -16,17 +16,25 @@ const __dirname = path.dirname(__filename);
 const PORT = Number(process.env.PORT || 3013);
 const MODEL_NAME = process.env.NANO_BANANA_MODEL || "gemini-3.1-flash-image-preview";
 const generatedFolder = path.join(__dirname, "generated");
+const logsFolder = path.join(__dirname, "logs");
 const modelsFolder = path.join(__dirname, "models");
 const scriptsFolder = path.join(__dirname, "scripts");
 const uploadsFolder = path.join(__dirname, "uploads");
 const stylesFolder = path.join(__dirname, "styles");
+const blurredFolder = path.join(__dirname, "blurred");
+const zoomedFolder = path.join(__dirname, "zoomed");
+const appLogFile = path.join(logsFolder, "app.log");
+const imageGeneratorLogFile = path.join(logsFolder, "image-generator.log");
+const imageGeneratorErrorLogFile = path.join(logsFolder, "image-generator-errors.log");
 const stylesMetadataFile = path.join(stylesFolder, "hairstyles.json");
 const stylesDescriptionFile = path.join(stylesFolder, "hairstyles.txt");
 const hairSegmenterModelPath = path.join(modelsFolder, "hair_segmenter.tflite");
 const hairSegmenterScriptPath = path.join(scriptsFolder, "segment_hair.py");
+const facialFitScriptPath = path.join(scriptsFolder, "facial_fit.py");
 const hairSegmenterModelUrl = "https://storage.googleapis.com/mediapipe-models/image_segmenter/hair_segmenter/float32/latest/hair_segmenter.tflite";
 const pythonCommand = process.env.PYTHON_BIN || "python";
 const execFileAsync = promisify(execFile);
+const IMAGE_GENERATION_MAX_ATTEMPTS = Math.max(1, Number(process.env.IMAGE_GENERATION_MAX_ATTEMPTS || 3));
 
 const parseBooleanEnv = (value, defaultValue = false) => {
     if (value === undefined || value === null || value === "") {
@@ -50,6 +58,10 @@ const TEST_MODE = parseBooleanEnv(
     process.env.TEST_MODE ?? process.env.NANO_BANANA_TEST_MODE,
     false
 );
+const FACIAL_FIT = parseBooleanEnv(
+    process.env.FACIAL_FIT ?? process.env.FacialFit,
+    false
+);
 
 const ensureDirectory = (folderPath) => {
     if (!fs.existsSync(folderPath)) {
@@ -58,8 +70,10 @@ const ensureDirectory = (folderPath) => {
 };
 
 ensureDirectory(generatedFolder);
+ensureDirectory(logsFolder);
 ensureDirectory(modelsFolder);
 ensureDirectory(uploadsFolder);
+ensureDirectory(zoomedFolder);
 
 let hairSegmenterModelPromise = null;
 
@@ -111,7 +125,363 @@ const getBase64Payload = (dataUrl) => {
     return payload;
 };
 
+const getApproxImageBytesFromDataUrl = (dataUrl) => {
+    const payloadLength = getBase64Payload(dataUrl).length;
+    return Math.max(0, Math.floor((payloadLength * 3) / 4));
+};
+
 const isImageDataUrl = (value) => /^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(String(value || "").trim());
+
+const appendLogEntry = (filePath, {
+    timestamp = new Date().toISOString(),
+    level = "INFO",
+    category = "app",
+    message = "",
+    data = null
+}) => {
+    const sections = [`[${timestamp}] [${level}] [${category}] ${message}`];
+
+    if (data !== null && data !== undefined) {
+        try {
+            sections.push(JSON.stringify(data, null, 2));
+        } catch (error) {
+            sections.push(JSON.stringify({
+                serializationError: "Unable to serialize log data.",
+                details: String(error?.message || "")
+            }, null, 2));
+        }
+    }
+
+    sections.push("");
+
+    try {
+        fs.appendFileSync(filePath, `${sections.join("\n")}\n`, "utf-8");
+    } catch (error) {
+        console.error("Failed to write log file entry.", error);
+    }
+};
+
+const writeAppLog = ({
+    level = "INFO",
+    category = "app",
+    message = "",
+    data = null
+}) => {
+    appendLogEntry(appLogFile, {
+        level,
+        category,
+        message,
+        data
+    });
+};
+
+const writeImageGeneratorLog = ({
+    level = "INFO",
+    category = "image-generator",
+    message = "",
+    data = null
+}) => {
+    appendLogEntry(imageGeneratorLogFile, {
+        level,
+        category,
+        message,
+        data
+    });
+};
+
+const writeImageGeneratorErrorLog = ({
+    level = "ERROR",
+    category = "image-generator-error",
+    message = "",
+    data = null
+}) => {
+    appendLogEntry(imageGeneratorErrorLogFile, {
+        level,
+        category,
+        message,
+        data
+    });
+};
+
+const serializeErrorForLog = (error) => ({
+    name: String(error?.name || "Error"),
+    message: String(error?.message || ""),
+    publicMessage: String(error?.publicMessage || ""),
+    statusCode: Number(error?.statusCode || 0) || undefined,
+    promptBlocked: String(error?.promptBlocked || ""),
+    providerFailureSummary: String(error?.providerFailureSummary || ""),
+    stack: String(error?.stack || "")
+});
+
+const delay = (milliseconds) => new Promise((resolve) => {
+    setTimeout(resolve, milliseconds);
+});
+
+const getProviderErrorStatusCode = (error) => {
+    const directStatusCode = Number(error?.statusCode || error?.code || error?.status || 0);
+
+    if (Number.isFinite(directStatusCode) && directStatusCode > 0) {
+        return directStatusCode;
+    }
+
+    const message = getErrorText(error);
+    const jsonMatch = message.match(/"code"\s*:\s*(\d{3})/i);
+
+    if (jsonMatch) {
+        return Number(jsonMatch[1]);
+    }
+
+    const statusMatch = message.match(/\b(408|409|425|429|500|502|503|504)\b/);
+    return statusMatch ? Number(statusMatch[1]) : 0;
+};
+
+const shouldRetryImageGenerationRequest = (error) => {
+    const promptBlocked = String(error?.promptBlocked || "").trim().toLowerCase();
+    const providerFailureSummary = String(error?.providerFailureSummary || "").trim().toLowerCase();
+    const errorText = getErrorText(error).toLowerCase();
+    const statusCode = getProviderErrorStatusCode(error);
+    const combinedText = [promptBlocked, providerFailureSummary, errorText].join(" ");
+
+    if (
+        combinedText.includes("promptblocked") ||
+        combinedText.includes("blocked") ||
+        combinedText.includes("finishreason=safety") ||
+        combinedText.includes("finishreason=prohibited_content") ||
+        combinedText.includes("finishreason=blocklist") ||
+        combinedText.includes("safety")
+    ) {
+        return false;
+    }
+
+    if (
+        combinedText.includes("missing image payload") ||
+        combinedText.includes("invalid image payload") ||
+        combinedText.includes("missing source image") ||
+        combinedText.includes("template image not found") ||
+        combinedText.includes("invalid api key") ||
+        combinedText.includes("api key not valid") ||
+        combinedText.includes("unauthenticated") ||
+        combinedText.includes("permission denied")
+    ) {
+        return false;
+    }
+
+    if ([408, 409, 425, 429, 500, 502, 503, 504].includes(statusCode)) {
+        return true;
+    }
+
+    return [
+        "deadline expired",
+        "deadline exceeded",
+        "timed out",
+        "timeout",
+        "\"status\":\"unavailable\"",
+        "service unavailable",
+        " unavailable",
+        "\"status\":\"internal\"",
+        "internal error",
+        "resource exhausted",
+        "rate limit",
+        "too many requests",
+        "fetch failed",
+        "network",
+        "econnreset",
+        "eai_again",
+        "enotfound",
+        "socket hang up",
+        "temporarily unavailable"
+    ].some((value) => combinedText.includes(value));
+};
+
+const summarizeImagePayloadsForLog = (imageDataUrls = []) => {
+    return imageDataUrls
+        .filter(Boolean)
+        .map((dataUrl, index) => ({
+            role: index === 0 ? "source" : "reference",
+            imageNumber: index + 1,
+            mimeType: getMimeTypeFromDataUrl(dataUrl),
+            approxBytes: getApproxImageBytesFromDataUrl(dataUrl)
+        }));
+};
+
+const buildImageGenerationLogContext = ({
+    prompt,
+    imageBase64,
+    referenceImageDataUrls = [],
+    savePrefix = ""
+}) => {
+    const normalizedImages = [imageBase64, ...referenceImageDataUrls].filter(Boolean);
+
+    return {
+        model: MODEL_NAME,
+        testMode: TEST_MODE,
+        requestLabel: savePrefix || "",
+        prompt: String(prompt || ""),
+        imageCount: normalizedImages.length,
+        images: summarizeImagePayloadsForLog(normalizedImages)
+    };
+};
+
+const logImageGenerationRequest = ({
+    prompt,
+    imageBase64,
+    referenceImageDataUrls = [],
+    savePrefix = "",
+    attemptNumber = 1,
+    maxAttempts = 1
+}) => {
+    const timestamp = new Date().toISOString();
+    const payload = {
+        timestamp,
+        attemptNumber,
+        maxAttempts,
+        ...buildImageGenerationLogContext({
+            prompt,
+            imageBase64,
+            referenceImageDataUrls,
+            savePrefix
+        })
+    };
+    const logMessage = TEST_MODE ?
+        "Generation request captured, but external image creation is skipped because TEST_MODE is enabled." :
+        `Sending generation request to Image Generator (attempt ${attemptNumber} of ${maxAttempts}).`;
+
+    writeImageGeneratorLog({
+        level: TEST_MODE ? "WARN" : "INFO",
+        category: TEST_MODE ? "image-generator-skipped" : "image-generator-request",
+        message: logMessage,
+        data: payload
+    });
+};
+
+const logImageGenerationError = ({
+    prompt,
+    imageBase64,
+    referenceImageDataUrls = [],
+    savePrefix = "",
+    error,
+    stage = "generate-content",
+    attemptNumber = 1,
+    maxAttempts = 1
+}) => {
+    const payload = {
+        timestamp: new Date().toISOString(),
+        stage,
+        attemptNumber,
+        maxAttempts,
+        ...buildImageGenerationLogContext({
+            prompt,
+            imageBase64,
+            referenceImageDataUrls,
+            savePrefix
+        }),
+        error: serializeErrorForLog(error)
+    };
+
+    writeImageGeneratorLog({
+        level: "ERROR",
+        category: "image-generator-error",
+        message: "Image Generator request failed.",
+        data: payload
+    });
+
+    writeImageGeneratorErrorLog({
+        level: "ERROR",
+        category: "image-generator-error",
+        message: "Image Generator request failed.",
+        data: payload
+    });
+};
+
+const logImageGenerationRetry = ({
+    prompt,
+    imageBase64,
+    referenceImageDataUrls = [],
+    savePrefix = "",
+    error,
+    attemptNumber = 1,
+    maxAttempts = 1,
+    retryDelayMs = 0
+}) => {
+    const payload = {
+        timestamp: new Date().toISOString(),
+        attemptNumber,
+        maxAttempts,
+        retryDelayMs,
+        ...buildImageGenerationLogContext({
+            prompt,
+            imageBase64,
+            referenceImageDataUrls,
+            savePrefix
+        }),
+        error: serializeErrorForLog(error)
+    };
+
+    writeImageGeneratorLog({
+        level: "WARN",
+        category: "image-generator-retry",
+        message: `Retrying Image Generator request after provider-side failure (attempt ${attemptNumber} of ${maxAttempts}).`,
+        data: payload
+    });
+
+    writeAppLog({
+        level: "WARN",
+        category: "generation-retry",
+        message: `Retrying Image Generator request ${savePrefix || "unnamed-request"} after provider-side failure.`,
+        data: payload
+    });
+};
+
+const logImageGenerationResponse = ({
+    savePrefix = "",
+    response,
+    imagePart = null,
+    failureSummary = "",
+    attemptNumber = 1,
+    maxAttempts = 1
+}) => {
+    const timestamp = new Date().toISOString();
+    const payload = {
+        timestamp,
+        model: MODEL_NAME,
+        requestLabel: savePrefix || "",
+        attemptNumber,
+        maxAttempts,
+        receivedImage: Boolean(imagePart),
+        mimeType: imagePart?.mimeType || "",
+        promptBlocked: String(response?.promptFeedback?.blockReason || "").trim().toUpperCase(),
+        candidateCount: Array.isArray(response?.candidates) ? response.candidates.length : 0,
+        failureSummary: String(failureSummary || "").trim()
+    };
+
+    writeImageGeneratorLog({
+        level: payload.receivedImage ? "INFO" : "ERROR",
+        category: payload.receivedImage ? "image-generator-response" : "image-generator-response-error",
+        message: payload.receivedImage ?
+            `Received image response from Image Generator on attempt ${attemptNumber} of ${maxAttempts}.` :
+            `Image Generator returned no image on attempt ${attemptNumber} of ${maxAttempts}.`,
+        data: payload
+    });
+};
+
+const logGenerationFailure = ({
+    route,
+    stage,
+    error,
+    context = {}
+}) => {
+    writeAppLog({
+        level: "ERROR",
+        category: "generation-error",
+        message: `${route} failed during ${stage}.`,
+        data: {
+            route,
+            stage,
+            context,
+            error: serializeErrorForLog(error)
+        }
+    });
+};
 
 const assertImageDataUrl = (value, publicMessage = "Please choose a valid image and try again.") => {
     const mimeType = getMimeTypeFromDataUrl(value);
@@ -323,16 +693,36 @@ const getTemplateStyleByFilename = (filename) => {
     return catalog.find((style) => style.filename === filename) || null;
 };
 
-const getStyleReferenceDataUrl = (filename) => {
-    const filePath = path.join(stylesFolder, filename);
+const getImageReferenceDataUrl = (folderPath, filename, notFoundMessage) => {
+    const filePath = path.join(folderPath, filename);
 
     if (!fs.existsSync(filePath)) {
-        throw new Error(`Template image not found: ${filename}`);
+        throw new Error(notFoundMessage);
     }
 
     const mimeType = getMimeTypeFromFilename(filename);
     const base64Data = fs.readFileSync(filePath).toString("base64");
     return `data:${mimeType};base64,${base64Data}`;
+};
+
+const getStyleReferenceDataUrl = (filename) => getImageReferenceDataUrl(
+    stylesFolder,
+    filename,
+    `Template image not found: ${filename}`
+);
+
+const getBlurredStyleReferenceDataUrl = (filename) => {
+    const filePath = path.join(blurredFolder, filename);
+
+    if (!fs.existsSync(filePath)) {
+        return "";
+    }
+
+    return getImageReferenceDataUrl(
+        blurredFolder,
+        filename,
+        `Blurred reference image not found: ${filename}`
+    );
 };
 
 const buildHairstyleEditPrompt = ({ hairstyleName, hairstylePrompt }) => {
@@ -341,6 +731,7 @@ const buildHairstyleEditPrompt = ({ hairstyleName, hairstylePrompt }) => {
         "Keep the exact same person.",
         "Preserve facial features, skin tone, expression, camera angle, pose, clothing, and background.",
         "Only change the hairstyle.",
+        "Make it realistic and fitting well important!",
         "Make the result photorealistic, flattering, and salon quality.",
         `Target hairstyle name: ${hairstyleName}.`,
         `Target hairstyle description: ${hairstylePrompt}`
@@ -349,15 +740,9 @@ const buildHairstyleEditPrompt = ({ hairstyleName, hairstylePrompt }) => {
 
 const buildTemplateEditPrompt = ({ templateName, templatePrompt, extraPrompt }) => {
     return [
-        "Use the uploaded portrait as the source image.",
-        "Keep the exact same person.",
-        "Preserve facial features, skin tone, expression, camera angle, pose, clothing, and background.",
-        "Change only the hairstyle.",
-        "Use the reference template image as the hairstyle guide.",
-        "Match the reference hairstyle shape, length, texture, and color as closely as possible.",
-        "Keep the result photorealistic, flattering, and salon quality.",
-        `Template hairstyle name: ${templateName}.`,
-        `Template hairstyle description: ${templatePrompt}`,
+        "Replace image 1's hairstyle with image 2.",
+        "Transfer the hair type, color, and overall style from image 2 to image 1 identically and realistically so it fits well.",
+        "Keep everything else in image 1 the same, including the person and background.",
         extraPrompt ? `Additional prompt: ${extraPrompt}` : ""
     ].filter(Boolean).join(" ");
 };
@@ -369,6 +754,7 @@ const buildRearViewPrompt = ({ lookName, lookDescription, angleLabel }) => {
         "Preserve the haircut shape, length, layering, texture, density, and hair color.",
         "Keep the background unchanged.",
         "Do not redesign the hairstyle or change the person's identity.",
+        "Make it realistic and fitting well important!",
         "Create a photorealistic salon-quality result.",
         `Rotate the viewpoint to show a ${angleLabel} of the hairstyle.`,
         "Make the back shape, layers, perimeter, and nape area clearly visible.",
@@ -388,20 +774,21 @@ const buildPromptVariationPrompt = ({
     hairColorReferenceKind = ""
 }) => {
     return [
-        "Use the provided hairstyle image as the source image.",
-        "Keep the exact same person.",
-        "Keep the background unchanged.",
-        "Keep the hairstyle closely related to the selected look unless the additional prompt requests a clear refinement.",
-        "Preserve salon-quality realism and a flattering, believable result.",
-        "Keep the framing suitable for comparing the new image beside the original selected result.",
         hasHairColorReference && hairColorReferenceKind === "portrait"
-            ? "Use the additional portrait reference only for the target hair color and tone. Do not copy the reference person's face, haircut shape, pose, background, or identity."
+            ? "Replace image 1's hair with image 2."
+            : "Edit image 1 only.",
+        hasHairColorReference && hairColorReferenceKind === "portrait"
+            ? "Transfer the hair type, color, and overall style from image 2 to image 1 identically and realistically so it fits well."
+            : "",
+        !hasHairColorReference
+            ? "Keep the same person and background in image 1. Only refine the hair realistically so it fits well."
+            : "",
+        hasHairColorReference && hairColorReferenceKind === "portrait"
+            ? "Keep everything else in image 1 the same, including the person and background."
             : "",
         hasHairColorReference && hairColorReferenceKind !== "portrait"
-            ? "Use the additional color swatch image only as the target hair color reference. Match the hair color to that swatch while preserving the haircut shape, length, and styling unless the prompt asks otherwise."
+            ? "Match only the hair color in image 1 to image 2 and keep everything else in image 1 the same."
             : "",
-        `Current hairstyle name: ${lookName}.`,
-        lookDescription ? `Current hairstyle description: ${lookDescription}` : "",
         hairColorLabel ? `Requested hair color name: ${hairColorLabel}.` : "",
         hairColorHex ? `Requested hair color value: ${hairColorHex}.` : "",
         extraPrompt ? `Additional prompt: ${extraPrompt}` : ""
@@ -416,11 +803,12 @@ const buildHairColorOnlyPrompt = ({
 }) => {
     return [
         hasHairColorReference && hairColorReferenceKind === "portrait"
-            ? "Change the subject's hair color to match the provided hair-color portrait reference."
+            ? "Replace image 1's hair color and hair type with image 2."
             : hasHairColorReference
-                ? "Change the subject's hair color to match the provided color swatch."
+                ? "Match only the hair color in image 1 to image 2."
                 : "Change the subject's hair color to the requested color.",
-        "Keep the exact same person, haircut shape, hairstyle length, and styling.",
+        "Keep everything else in image 1 the same, including the person, hairstyle shape, and background.",
+        "Make it realistic and fitting well important!",
         hairColorLabel ? `Requested hair color name: ${hairColorLabel}.` : "",
         hairColorHex ? `Requested hair color value: ${hairColorHex}.` : ""
     ].filter(Boolean).join(" ");
@@ -579,6 +967,7 @@ const getPublicErrorResponse = (error, fallbackMessage = "Something went wrong. 
     if (
         message.includes("timed out") ||
         message.includes("timeout") ||
+        message.includes("deadline expired") ||
         message.includes("deadline exceeded") ||
         message.includes("etimedout") ||
         message.includes("aborterror")
@@ -592,6 +981,9 @@ const getPublicErrorResponse = (error, fallbackMessage = "Something went wrong. 
     if (
         message.includes("fetch failed") ||
         message.includes("network") ||
+        message.includes("\"status\":\"unavailable\"") ||
+        message.includes("service unavailable") ||
+        message.includes(" unavailable") ||
         message.includes("econnreset") ||
         message.includes("eai_again") ||
         message.includes("enotfound") ||
@@ -664,6 +1056,16 @@ const getPublicErrorResponse = (error, fallbackMessage = "Something went wrong. 
 const respondWithPublicError = (res, error, logLabel, fallbackMessage) => {
     console.error(logLabel, error);
     const { statusCode, message } = getPublicErrorResponse(error, fallbackMessage);
+    writeAppLog({
+        level: "ERROR",
+        category: "request-error",
+        message: logLabel,
+        data: {
+            statusCode,
+            publicMessage: message,
+            error: serializeErrorForLog(error)
+        }
+    });
     return res.status(statusCode).json({ error: message });
 };
 
@@ -673,6 +1075,22 @@ const shouldRetryHairColorWithSwatchFallback = ({
     swatchDataUrl
 }) => {
     if (referenceKind !== "portrait" || !swatchDataUrl) {
+        return false;
+    }
+
+    const promptBlocked = String(error?.promptBlocked || "").trim().toLowerCase();
+    const providerFailureSummary = String(error?.providerFailureSummary || "").trim().toLowerCase();
+    const errorText = getErrorText(error).toLowerCase();
+
+    return [
+        promptBlocked,
+        providerFailureSummary,
+        errorText
+    ].some((value) => value.includes("promptblocked") || value.includes("blocked") || value.includes("did not return an image"));
+};
+
+const shouldRetryWithBlurredStyleReference = ({ error, filename }) => {
+    if (!filename || !getBlurredStyleReferenceDataUrl(filename)) {
         return false;
     }
 
@@ -743,6 +1161,91 @@ const saveDataUrlToFile = (dataUrl, filePath) => {
     fs.writeFileSync(filePath, Buffer.from(base64Payload, "base64"));
 };
 
+const readImageFileAsDataUrl = (filePath) => {
+    const mimeType = getMimeTypeFromFilename(filePath);
+    const base64Payload = fs.readFileSync(filePath).toString("base64");
+    return `data:${mimeType};base64,${base64Payload}`;
+};
+
+const runFacialFit = async({ sourceImageBase64, referenceImageDataUrl, savePrefix = "" }) => {
+    if (!fs.existsSync(facialFitScriptPath)) {
+        throw new Error("Facial fit script is missing.");
+    }
+
+    const jobDirectory = fs.mkdtempSync(path.join(generatedFolder, "facial-fit-"));
+    const sourceExtension = getExtensionFromMimeType(getMimeTypeFromDataUrl(sourceImageBase64));
+    const referenceExtension = getExtensionFromMimeType(getMimeTypeFromDataUrl(referenceImageDataUrl));
+    const sourcePath = path.join(jobDirectory, `source.${sourceExtension}`);
+    const referencePath = path.join(jobDirectory, `reference.${referenceExtension}`);
+    const outputFilename = `${savePrefix || "facial-fit"}_zoomed_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.png`;
+    const outputPath = path.join(zoomedFolder, outputFilename);
+    const startedAt = Date.now();
+
+    try {
+        saveDataUrlToFile(sourceImageBase64, sourcePath);
+        saveDataUrlToFile(referenceImageDataUrl, referencePath);
+
+        const { stdout, stderr } = await execFileAsync(
+            pythonCommand,
+            [
+                facialFitScriptPath,
+                sourcePath,
+                referencePath,
+                outputPath
+            ],
+            {
+                cwd: __dirname,
+                maxBuffer: 50 * 1024 * 1024,
+                timeout: 120000
+            }
+        );
+
+        if (stderr.trim()) {
+            writeAppLog({
+                level: "WARN",
+                category: "facial-fit",
+                message: "Facial fit wrote to stderr.",
+                data: {
+                    requestLabel: savePrefix || "",
+                    stderr: stderr.trim()
+                }
+            });
+        }
+
+        const parsed = JSON.parse(stdout.trim());
+
+        if (parsed.error) {
+            throw new Error(parsed.error);
+        }
+
+        if (!fs.existsSync(outputPath)) {
+            throw new Error("Facial fit did not produce an output image.");
+        }
+
+        const durationMs = Date.now() - startedAt;
+        const outputUrl = `/zoomed/${encodeURIComponent(outputFilename)}`;
+
+        console.log(`[Facial Fit] Zoom generated in ${durationMs}ms`);
+        console.log(`[Facial Fit] Zoomed image saved at ${outputUrl}`);
+
+        return {
+            imageBase64: readImageFileAsDataUrl(outputPath),
+            metadata: {
+                requestLabel: savePrefix || "",
+                durationMs,
+                outputFilename,
+                outputUrl,
+                rawScale: Number(parsed.raw_scale || 0),
+                appliedScale: Number(parsed.applied_scale || 0),
+                sourceFace: parsed.source_face || null,
+                referenceFace: parsed.reference_face || null
+            }
+        };
+    } finally {
+        fs.rmSync(jobDirectory, { recursive: true, force: true });
+    }
+};
+
 const runHairSegmentation = async({ imageBase64 }) => {
     await ensureHairSegmenterModel();
 
@@ -780,6 +1283,14 @@ const runHairSegmentation = async({ imageBase64 }) => {
 
         if (stderr.trim()) {
             console.log("Hair segmentation stderr:", stderr.trim());
+            writeAppLog({
+                level: "WARN",
+                category: "hair-segmentation",
+                message: "Hair segmentation wrote to stderr.",
+                data: {
+                    stderr: stderr.trim()
+                }
+            });
         }
 
         const parsed = JSON.parse(stdout.trim());
@@ -802,6 +1313,15 @@ const runHairSegmentation = async({ imageBase64 }) => {
 
         if (stderr) {
             console.error("Hair segmentation stderr:", stderr);
+            writeAppLog({
+                level: "ERROR",
+                category: "hair-segmentation",
+                message: "Hair segmentation failed with stderr output.",
+                data: {
+                    stderr,
+                    error: serializeErrorForLog(error)
+                }
+            });
         }
 
         throw createPublicError(
@@ -814,8 +1334,29 @@ const runHairSegmentation = async({ imageBase64 }) => {
     }
 };
 
-const generateImageVariation = async({ imageBase64, prompt, savePrefix, referenceImageDataUrl = "", referenceImageDataUrls = [] }) => {
+const generateImageVariation = async({
+    imageBase64,
+    prompt,
+    savePrefix,
+    referenceImageDataUrl = "",
+    referenceImageDataUrls = [],
+    useFacialFit = false
+}) => {
+    const normalizedReferenceImages = [...referenceImageDataUrls];
+
+    if (referenceImageDataUrl) {
+        normalizedReferenceImages.unshift(referenceImageDataUrl);
+    }
+
     if (TEST_MODE) {
+        logImageGenerationRequest({
+            prompt,
+            imageBase64,
+            referenceImageDataUrls: normalizedReferenceImages,
+            savePrefix,
+            attemptNumber: 1,
+            maxAttempts: 1
+        });
         return {
             imageUrl: imageBase64,
             savedFile: null,
@@ -823,67 +1364,170 @@ const generateImageVariation = async({ imageBase64, prompt, savePrefix, referenc
         };
     }
 
-    assertImageDataUrl(imageBase64);
-    const mimeType = getMimeTypeFromDataUrl(imageBase64);
-    const base64Payload = getBase64Payload(imageBase64);
-    const ai = getGoogleClient();
-    const contents = [
-        { text: prompt },
-        {
-            inlineData: {
-                mimeType,
-                data: base64Payload
-            }
-        }
-    ];
-    const normalizedReferenceImages = [...referenceImageDataUrls];
+    let effectiveImageBase64 = imageBase64;
 
-    if (referenceImageDataUrl) {
-        normalizedReferenceImages.unshift(referenceImageDataUrl);
+    if (FACIAL_FIT && useFacialFit && normalizedReferenceImages[0]) {
+        try {
+            const facialFitResult = await runFacialFit({
+                sourceImageBase64: imageBase64,
+                referenceImageDataUrl: normalizedReferenceImages[0],
+                savePrefix
+            });
+            effectiveImageBase64 = facialFitResult.imageBase64;
+
+            writeImageGeneratorLog({
+                level: "INFO",
+                category: "facial-fit",
+                message: "Applied Facial Fit to the source image before generation.",
+                data: facialFitResult.metadata
+            });
+        } catch (error) {
+            writeAppLog({
+                level: "WARN",
+                category: "facial-fit",
+                message: "Facial Fit failed. Falling back to the original source image.",
+                data: {
+                    requestLabel: savePrefix || "",
+                    error: serializeErrorForLog(error)
+                }
+            });
+            writeImageGeneratorLog({
+                level: "WARN",
+                category: "facial-fit",
+                message: "Facial Fit failed. Falling back to the original source image.",
+                data: {
+                    requestLabel: savePrefix || "",
+                    error: serializeErrorForLog(error)
+                }
+            });
+        }
     }
+
+    assertImageDataUrl(effectiveImageBase64);
+    const mimeType = getMimeTypeFromDataUrl(effectiveImageBase64);
+    const base64Payload = getBase64Payload(effectiveImageBase64);
+    const ai = getGoogleClient();
 
     normalizedReferenceImages
         .filter(Boolean)
         .forEach((referenceImage) => {
             assertImageDataUrl(referenceImage);
-            contents.push({
-                inlineData: {
-                    mimeType: getMimeTypeFromDataUrl(referenceImage),
-                    data: getBase64Payload(referenceImage)
-                }
-            });
         });
 
-    const response = await ai.models.generateContent({
-        model: MODEL_NAME,
-        contents,
-        config: {
-            responseModalities: ["TEXT", "IMAGE"]
+    let lastError = null;
+
+    for (let attemptNumber = 1; attemptNumber <= IMAGE_GENERATION_MAX_ATTEMPTS; attemptNumber += 1) {
+        logImageGenerationRequest({
+            prompt,
+            imageBase64: effectiveImageBase64,
+            referenceImageDataUrls: normalizedReferenceImages,
+            savePrefix,
+            attemptNumber,
+            maxAttempts: IMAGE_GENERATION_MAX_ATTEMPTS
+        });
+
+        try {
+            const contents = [
+                { text: prompt },
+                {
+                    inlineData: {
+                        mimeType,
+                        data: base64Payload
+                    }
+                }
+            ];
+
+            normalizedReferenceImages
+                .filter(Boolean)
+                .forEach((referenceImage) => {
+                    contents.push({
+                        inlineData: {
+                            mimeType: getMimeTypeFromDataUrl(referenceImage),
+                            data: getBase64Payload(referenceImage)
+                        }
+                    });
+                });
+
+            const response = await ai.models.generateContent({
+                model: MODEL_NAME,
+                contents,
+                config: {
+                    responseModalities: ["TEXT", "IMAGE"]
+                }
+            });
+
+            const imagePart = extractInlineImage(response);
+
+            if (!imagePart) {
+                const failureSummary = summarizeGenerateContentFailure(response);
+                console.warn("Image service returned no image.", failureSummary);
+                logImageGenerationResponse({
+                    savePrefix,
+                    response,
+                    imagePart: null,
+                    failureSummary,
+                    attemptNumber,
+                    maxAttempts: IMAGE_GENERATION_MAX_ATTEMPTS
+                });
+                const error = createPublicError(
+                    "We couldn't finish that image. Please try again.",
+                    502,
+                    `Image generation returned no image. ${failureSummary}`.trim()
+                );
+                error.providerFailureSummary = failureSummary;
+                error.promptBlocked = String(response?.promptFeedback?.blockReason || "").trim().toUpperCase();
+                throw error;
+            }
+
+            const savedFile = writeGeneratedImage(imagePart.data, imagePart.mimeType, savePrefix);
+            logImageGenerationResponse({
+                savePrefix,
+                response,
+                imagePart,
+                failureSummary: "",
+                attemptNumber,
+                maxAttempts: IMAGE_GENERATION_MAX_ATTEMPTS
+            });
+
+            return {
+                imageUrl: `data:${imagePart.mimeType};base64,${imagePart.data}`,
+                savedFile,
+                testMode: false
+            };
+        } catch (error) {
+            lastError = error;
+            const shouldRetry = attemptNumber < IMAGE_GENERATION_MAX_ATTEMPTS && shouldRetryImageGenerationRequest(error);
+
+            if (shouldRetry) {
+                const retryDelayMs = Math.min(4000, 800 * attemptNumber);
+                logImageGenerationRetry({
+                    prompt,
+                    imageBase64: effectiveImageBase64,
+                    referenceImageDataUrls: normalizedReferenceImages,
+                    savePrefix,
+                    error,
+                    attemptNumber: attemptNumber + 1,
+                    maxAttempts: IMAGE_GENERATION_MAX_ATTEMPTS,
+                    retryDelayMs
+                });
+                await delay(retryDelayMs);
+                continue;
+            }
+
+            logImageGenerationError({
+                prompt,
+                imageBase64: effectiveImageBase64,
+                referenceImageDataUrls: normalizedReferenceImages,
+                savePrefix,
+                error,
+                attemptNumber,
+                maxAttempts: IMAGE_GENERATION_MAX_ATTEMPTS
+            });
+            throw error;
         }
-    });
-
-    const imagePart = extractInlineImage(response);
-
-    if (!imagePart) {
-        const failureSummary = summarizeGenerateContentFailure(response);
-        console.warn("Image service returned no image.", failureSummary);
-        const error = createPublicError(
-            "We couldn't finish that image. Please try again.",
-            502,
-            `Image generation returned no image. ${failureSummary}`.trim()
-        );
-        error.providerFailureSummary = failureSummary;
-        error.promptBlocked = String(response?.promptFeedback?.blockReason || "").trim().toUpperCase();
-        throw error;
     }
 
-    const savedFile = writeGeneratedImage(imagePart.data, imagePart.mimeType, savePrefix);
-
-    return {
-        imageUrl: `data:${imagePart.mimeType};base64,${imagePart.data}`,
-        savedFile,
-        testMode: false
-    };
+    throw lastError || new Error("Image generation failed.");
 };
 
 const saveSalonPhoto = ({ salonSlug, imageBase64, originalName }) => {
@@ -936,7 +1580,8 @@ app.get("/api/health", (_req, res) => {
         ok: true,
         model: MODEL_NAME,
         hasApiKey: Boolean(process.env.GEMINI_API_KEY),
-        testMode: TEST_MODE
+        testMode: TEST_MODE,
+        facialFit: FACIAL_FIT
     });
 });
 
@@ -992,11 +1637,12 @@ app.post("/api/random-hairstyles", async(req, res) => {
         const results = [];
 
         for (const hairstyle of hairstyles) {
+            const finalPrompt = buildHairstyleEditPrompt({
+                hairstyleName: hairstyle.name,
+                hairstylePrompt: hairstyle.prompt
+            });
+
             try {
-                const finalPrompt = buildHairstyleEditPrompt({
-                    hairstyleName: hairstyle.name,
-                    hairstylePrompt: hairstyle.prompt
-                });
                 const result = await generateImageVariation({
                     imageBase64,
                     prompt: finalPrompt,
@@ -1013,14 +1659,22 @@ app.post("/api/random-hairstyles", async(req, res) => {
                     testMode: result.testMode
                 });
             } catch (error) {
+                logGenerationFailure({
+                    route: "/api/random-hairstyles",
+                    stage: "hairstyle-option",
+                    error,
+                    context: {
+                        hairstyleId: hairstyle.id || "",
+                        hairstyleName: hairstyle.name || "",
+                        sourcePrompt: hairstyle.prompt || "",
+                        finalPrompt
+                    }
+                });
                 results.push({
                     id: hairstyle.id,
                     name: hairstyle.name,
                     sourcePrompt: hairstyle.prompt,
-                    finalPrompt: buildHairstyleEditPrompt({
-                        hairstyleName: hairstyle.name,
-                        hairstylePrompt: hairstyle.prompt
-                    }),
+                    finalPrompt,
                     errorMessage: getPublicErrorResponse(error, "We couldn't create this look right now.").message
                 });
             }
@@ -1047,20 +1701,53 @@ app.post("/api/template-hairstyles", async(req, res) => {
         const results = [];
 
         for (const template of templates) {
+            const resolvedTemplate = getTemplateStyleByFilename(template.filename) || template;
+            const finalPrompt = buildTemplateEditPrompt({
+                templateName: resolvedTemplate.name,
+                templatePrompt: resolvedTemplate.prompt,
+                extraPrompt
+            });
+            const attemptedReferenceVariants = ["original"];
+
             try {
-                const resolvedTemplate = getTemplateStyleByFilename(template.filename) || template;
-                const finalPrompt = buildTemplateEditPrompt({
-                    templateName: resolvedTemplate.name,
-                    templatePrompt: resolvedTemplate.prompt,
-                    extraPrompt
-                });
-                const referenceImageDataUrl = getStyleReferenceDataUrl(resolvedTemplate.filename);
-                const result = await generateImageVariation({
+                const runTemplateAttempt = async(referenceImageDataUrl) => generateImageVariation({
                     imageBase64,
                     prompt: finalPrompt,
                     savePrefix: resolvedTemplate.id || normalizeStyleKey(resolvedTemplate.filename),
-                    referenceImageDataUrl
+                    referenceImageDataUrl,
+                    useFacialFit: true
                 });
+
+                let result;
+                let referenceImageVariant = "original";
+
+                try {
+                    result = await runTemplateAttempt(getStyleReferenceDataUrl(resolvedTemplate.filename));
+                } catch (error) {
+                    if (!shouldRetryWithBlurredStyleReference({
+                        error,
+                        filename: resolvedTemplate.filename
+                    })) {
+                        throw error;
+                    }
+
+                    console.warn(`Retrying template ${resolvedTemplate.filename} with blurred reference.`);
+                    writeAppLog({
+                        level: "WARN",
+                        category: "generation-retry",
+                        message: `Retrying template ${resolvedTemplate.filename} with blurred reference.`,
+                        data: {
+                            route: "/api/template-hairstyles",
+                            templateFilename: resolvedTemplate.filename,
+                            templateName: resolvedTemplate.name,
+                            finalPrompt,
+                            error: serializeErrorForLog(error)
+                        }
+                    });
+                    attemptedReferenceVariants.push("blurred");
+                    result = await runTemplateAttempt(getBlurredStyleReferenceDataUrl(resolvedTemplate.filename));
+                    referenceImageVariant = "blurred";
+                }
 
                 results.push({
                     id: resolvedTemplate.id,
@@ -1070,18 +1757,29 @@ app.post("/api/template-hairstyles", async(req, res) => {
                     imageUrl: result.imageUrl,
                     savedFile: result.savedFile,
                     testMode: result.testMode,
-                    referenceImageUrl: resolvedTemplate.imageUrl
+                    referenceImageUrl: resolvedTemplate.imageUrl,
+                    referenceImageVariant
                 });
             } catch (error) {
+                logGenerationFailure({
+                    route: "/api/template-hairstyles",
+                    stage: "template-option",
+                    error,
+                    context: {
+                        templateId: resolvedTemplate.id || normalizeStyleKey(resolvedTemplate.filename),
+                        templateFilename: resolvedTemplate.filename || template.filename || "",
+                        templateName: resolvedTemplate.name || template.name || "",
+                        sourcePrompt: resolvedTemplate.prompt || template.prompt || "",
+                        finalPrompt,
+                        extraPrompt: String(extraPrompt || ""),
+                        attemptedReferenceVariants
+                    }
+                });
                 results.push({
-                    id: template.id || normalizeStyleKey(template.filename),
-                    name: template.name || formatStyleName(template.filename),
-                    sourcePrompt: template.prompt || "",
-                    finalPrompt: buildTemplateEditPrompt({
-                        templateName: template.name || formatStyleName(template.filename),
-                        templatePrompt: template.prompt || "",
-                        extraPrompt
-                    }),
+                    id: resolvedTemplate.id || template.id || normalizeStyleKey(template.filename),
+                    name: resolvedTemplate.name || template.name || formatStyleName(template.filename),
+                    sourcePrompt: resolvedTemplate.prompt || template.prompt || "",
+                    finalPrompt,
                     errorMessage: getPublicErrorResponse(error, "We couldn't create this look right now.").message
                 });
             }
@@ -1143,6 +1841,19 @@ app.post("/api/generated-hairstyle-views", async(req, res) => {
                     testMode: result.testMode
                 });
             } catch (error) {
+                logGenerationFailure({
+                    route: "/api/generated-hairstyle-views",
+                    stage: "rear-view",
+                    error,
+                    context: {
+                        viewId: view.id,
+                        viewName: view.name,
+                        angleLabel: view.angleLabel,
+                        lookName,
+                        lookDescription,
+                        finalPrompt
+                    }
+                });
                 results.push({
                     id: view.id,
                     name: view.name,
@@ -1169,6 +1880,7 @@ app.post("/api/generated-hairstyle-variation", async(req, res) => {
             hairColorHex,
             hairColorLabel,
             hairColorReferenceImageBase64,
+            hairColorReferenceFilename,
             hairColorReferenceKind,
             hairColorSwatchBase64
         } = req.body || {};
@@ -1176,6 +1888,7 @@ app.post("/api/generated-hairstyle-variation", async(req, res) => {
         const normalizedHairColorHex = String(hairColorHex || "").trim();
         const normalizedHairColorLabel = String(hairColorLabel || "").trim();
         const normalizedHairColorReferenceImageBase64 = String(hairColorReferenceImageBase64 || hairColorSwatchBase64 || "").trim();
+        const normalizedHairColorReferenceFilename = String(hairColorReferenceFilename || "").trim();
         const normalizedHairColorSwatchBase64 = String(hairColorSwatchBase64 || "").trim();
         const normalizedHairColorReferenceKind = String(
             hairColorReferenceKind || (hairColorSwatchBase64 ? "swatch" : "")
@@ -1213,7 +1926,8 @@ app.post("/api/generated-hairstyle-variation", async(req, res) => {
                 imageBase64,
                 prompt: finalPrompt,
                 savePrefix: `${normalizeStyleKey(lookName)}-variation`,
-                referenceImageDataUrls: referenceImageDataUrl ? [referenceImageDataUrl] : []
+                referenceImageDataUrls: referenceImageDataUrl ? [referenceImageDataUrl] : [],
+                useFacialFit: referenceKind === "portrait"
             });
 
             return {
@@ -1231,19 +1945,64 @@ app.post("/api/generated-hairstyle-variation", async(req, res) => {
                 normalizedHairColorReferenceKind
             );
         } catch (error) {
-            if (!shouldRetryHairColorWithSwatchFallback({
-                error,
-                referenceKind: normalizedHairColorReferenceKind,
-                swatchDataUrl: normalizedHairColorSwatchBase64
-            })) {
-                throw error;
-            }
+            if (
+                normalizedHairColorReferenceKind === "portrait" &&
+                normalizedHairColorReferenceFilename &&
+                shouldRetryWithBlurredStyleReference({
+                    error,
+                    filename: normalizedHairColorReferenceFilename
+                })
+            ) {
+                console.warn(`Retrying hair-color variation with blurred portrait reference ${normalizedHairColorReferenceFilename}.`);
+                writeAppLog({
+                    level: "WARN",
+                    category: "generation-retry",
+                    message: `Retrying hair-color variation with blurred portrait reference ${normalizedHairColorReferenceFilename}.`,
+                    data: {
+                        route: "/api/generated-hairstyle-variation",
+                        lookName,
+                        lookDescription,
+                        extraPrompt: normalizedExtraPrompt,
+                        hairColorHex: normalizedHairColorHex,
+                        hairColorLabel: normalizedHairColorLabel,
+                        hairColorReferenceFilename: normalizedHairColorReferenceFilename,
+                        error: serializeErrorForLog(error)
+                    }
+                });
+                variationAttempt = await runVariationAttempt(
+                    getBlurredStyleReferenceDataUrl(normalizedHairColorReferenceFilename),
+                    "portrait"
+                );
+            } else {
+                if (!shouldRetryHairColorWithSwatchFallback({
+                    error,
+                    referenceKind: normalizedHairColorReferenceKind,
+                    swatchDataUrl: normalizedHairColorSwatchBase64
+                })) {
+                    throw error;
+                }
 
-            console.warn("Retrying hair-color variation with swatch fallback.");
-            variationAttempt = await runVariationAttempt(
-                normalizedHairColorSwatchBase64,
-                "swatch"
-            );
+                console.warn("Retrying hair-color variation with swatch fallback.");
+                writeAppLog({
+                    level: "WARN",
+                    category: "generation-retry",
+                    message: "Retrying hair-color variation with swatch fallback.",
+                    data: {
+                        route: "/api/generated-hairstyle-variation",
+                        lookName,
+                        lookDescription,
+                        extraPrompt: normalizedExtraPrompt,
+                        hairColorHex: normalizedHairColorHex,
+                        hairColorLabel: normalizedHairColorLabel,
+                        hairColorReferenceKind: normalizedHairColorReferenceKind,
+                        error: serializeErrorForLog(error)
+                    }
+                });
+                variationAttempt = await runVariationAttempt(
+                    normalizedHairColorSwatchBase64,
+                    "swatch"
+                );
+            }
         }
 
         res.json({
@@ -1309,4 +2068,32 @@ app.use((_req, res) => {
 
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`Logs available at ${appLogFile}, ${imageGeneratorLogFile}, and ${imageGeneratorErrorLogFile}`);
+    writeAppLog({
+        level: "INFO",
+        category: "server",
+        message: "Server started.",
+        data: {
+            port: PORT,
+            model: MODEL_NAME,
+            testMode: TEST_MODE,
+            facialFit: FACIAL_FIT,
+            appLogFile,
+            imageGeneratorLogFile,
+            imageGeneratorErrorLogFile
+        }
+    });
+
+    if (TEST_MODE) {
+        const testModeMessage = "TEST_MODE is enabled. External image-generation requests are skipped and the original image is returned.";
+        console.warn(testModeMessage);
+        writeAppLog({
+            level: "WARN",
+            category: "server",
+            message: testModeMessage,
+            data: {
+                testMode: true
+            }
+        });
+    }
 });
