@@ -1,0 +1,12 @@
+{
+  "filename": "short-curly-bob-with-defined-volume.jpg",
+  "sourceImage": "styles/short-curly-bob-with-defined-volume.jpg",
+  "face": {
+    "center_x": 0.5049432516098022,
+    "center_y": 0.4625494182109833,
+    "width": 0.45925915241241455,
+    "height": 0.4240639805793762,
+    "size": 0.45925915241241455
+  },
+  "blurredVariant": ""
+}

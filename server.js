@@ -22,12 +22,14 @@ const scriptsFolder = path.join(__dirname, "scripts");
 const uploadsFolder = path.join(__dirname, "uploads");
 const stylesFolder = path.join(__dirname, "styles");
 const blurredFolder = path.join(__dirname, "blurred");
+const faceGeometryFolder = path.join(__dirname, "face-geometry");
 const zoomedFolder = path.join(__dirname, "zoomed");
 const appLogFile = path.join(logsFolder, "app.log");
 const imageGeneratorLogFile = path.join(logsFolder, "image-generator.log");
 const imageGeneratorErrorLogFile = path.join(logsFolder, "image-generator-errors.log");
 const stylesMetadataFile = path.join(stylesFolder, "hairstyles.json");
 const stylesDescriptionFile = path.join(stylesFolder, "hairstyles.txt");
+const faceGeometryManifestFile = path.join(faceGeometryFolder, "manifest.json");
 const hairSegmenterModelPath = path.join(modelsFolder, "hair_segmenter.tflite");
 const hairSegmenterScriptPath = path.join(scriptsFolder, "segment_hair.py");
 const facialFitScriptPath = path.join(scriptsFolder, "facial_fit.py");
@@ -73,9 +75,12 @@ ensureDirectory(generatedFolder);
 ensureDirectory(logsFolder);
 ensureDirectory(modelsFolder);
 ensureDirectory(uploadsFolder);
+ensureDirectory(faceGeometryFolder);
 ensureDirectory(zoomedFolder);
 
 let hairSegmenterModelPromise = null;
+let cachedFaceGeometryManifestMtimeMs = -1;
+let cachedFaceGeometryEntries = new Map();
 
 const app = express();
 
@@ -688,6 +693,81 @@ const loadStyleMetadata = () => {
     return metadata;
 };
 
+const loadFaceGeometryManifest = () => {
+    if (!fs.existsSync(faceGeometryManifestFile)) {
+        cachedFaceGeometryManifestMtimeMs = -1;
+        cachedFaceGeometryEntries = new Map();
+        return cachedFaceGeometryEntries;
+    }
+
+    try {
+        const stats = fs.statSync(faceGeometryManifestFile);
+
+        if (stats.mtimeMs === cachedFaceGeometryManifestMtimeMs) {
+            return cachedFaceGeometryEntries;
+        }
+
+        const raw = fs.readFileSync(faceGeometryManifestFile, "utf-8");
+        const parsed = JSON.parse(raw);
+        const items = Array.isArray(parsed?.entries) ? parsed.entries : [];
+        const entries = new Map();
+
+        for (const item of items) {
+            const filename = String(item?.filename || "").trim();
+            const geometryFile = String(item?.geometryFile || "").trim();
+            const relativeGeometryPath = String(item?.geometryPath || "").trim();
+            const geometryPath = geometryFile ?
+                path.join(faceGeometryFolder, geometryFile) :
+                (relativeGeometryPath ? path.join(__dirname, relativeGeometryPath) : "");
+            const linkedBlurredFilename = String(item?.linkedBlurredFilename || "").trim();
+
+            if (!filename || !geometryPath || !fs.existsSync(geometryPath)) {
+                continue;
+            }
+
+            const entry = {
+                filename,
+                linkedBlurredFilename,
+                geometryPath
+            };
+
+            entries.set(filename.toLowerCase(), entry);
+
+            if (linkedBlurredFilename) {
+                entries.set(linkedBlurredFilename.toLowerCase(), entry);
+            }
+        }
+
+        cachedFaceGeometryManifestMtimeMs = stats.mtimeMs;
+        cachedFaceGeometryEntries = entries;
+    } catch (error) {
+        cachedFaceGeometryManifestMtimeMs = -1;
+        cachedFaceGeometryEntries = new Map();
+        writeAppLog({
+            level: "WARN",
+            category: "face-geometry",
+            message: "Unable to load face geometry manifest.",
+            data: {
+                manifestFile: faceGeometryManifestFile,
+                error: serializeErrorForLog(error)
+            }
+        });
+    }
+
+    return cachedFaceGeometryEntries;
+};
+
+const getCachedStyleFaceGeometry = (filename) => {
+    const normalizedFilename = String(filename || "").trim().toLowerCase();
+
+    if (!normalizedFilename) {
+        return null;
+    }
+
+    const manifestEntries = loadFaceGeometryManifest();
+    return manifestEntries.get(normalizedFilename) || null;
+};
+
 const loadStyleDescriptions = () => {
     const descriptions = new Map();
 
@@ -795,6 +875,7 @@ const buildHairstyleEditPrompt = ({ hairstyleName, hairstylePrompt }) => {
         "Keep the exact same person.",
         "Preserve facial features, skin tone, expression, camera angle, pose, clothing, and background.",
         "Only change the hairstyle.",
+        "The new hairstyle cannot have hair longer than in the current image provided.",
         "Make it realistic and fitting well important!",
         "Make the result photorealistic, flattering, and salon quality.",
         `Target hairstyle name: ${hairstyleName}.`,
@@ -1391,7 +1472,12 @@ const readImageFileAsDataUrl = (filePath) => {
     return `data:${mimeType};base64,${base64Payload}`;
 };
 
-const runFacialFit = async({ sourceImageBase64, referenceImageDataUrl, savePrefix = "" }) => {
+const runFacialFit = async({
+    sourceImageBase64,
+    referenceImageDataUrl,
+    referenceFilename = "",
+    savePrefix = ""
+}) => {
     if (!fs.existsSync(facialFitScriptPath)) {
         throw new Error("Facial fit script is missing.");
     }
@@ -1404,19 +1490,26 @@ const runFacialFit = async({ sourceImageBase64, referenceImageDataUrl, savePrefi
     const outputFilename = `${savePrefix || "facial-fit"}_zoomed_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.png`;
     const outputPath = path.join(zoomedFolder, outputFilename);
     const startedAt = Date.now();
+    const cachedReferenceGeometry = getCachedStyleFaceGeometry(referenceFilename);
 
     try {
         saveDataUrlToFile(sourceImageBase64, sourcePath);
         saveDataUrlToFile(referenceImageDataUrl, referencePath);
 
+        const facialFitArgs = [
+            facialFitScriptPath,
+            sourcePath,
+            referencePath,
+            outputPath
+        ];
+
+        if (cachedReferenceGeometry?.geometryPath) {
+            facialFitArgs.push("--reference-geometry", cachedReferenceGeometry.geometryPath);
+        }
+
         const { stdout, stderr } = await execFileAsync(
             pythonCommand,
-            [
-                facialFitScriptPath,
-                sourcePath,
-                referencePath,
-                outputPath
-            ],
+            facialFitArgs,
             {
                 cwd: __dirname,
                 maxBuffer: 50 * 1024 * 1024,
@@ -1456,13 +1549,17 @@ const runFacialFit = async({ sourceImageBase64, referenceImageDataUrl, savePrefi
             imageBase64: readImageFileAsDataUrl(outputPath),
             metadata: {
                 requestLabel: savePrefix || "",
+                referenceFilename: referenceFilename || "",
                 durationMs,
                 outputFilename,
                 outputUrl,
                 rawScale: Number(parsed.raw_scale || 0),
                 appliedScale: Number(parsed.applied_scale || 0),
+                referenceFaceSource: String(parsed.reference_face_source || ""),
+                referenceGeometryPath: String(parsed.reference_geometry_path || cachedReferenceGeometry?.geometryPath || ""),
                 sourceFace: parsed.source_face || null,
-                referenceFace: parsed.reference_face || null
+                referenceFace: parsed.reference_face || null,
+                cachedReferenceGeometry: Boolean(cachedReferenceGeometry?.geometryPath)
             }
         };
     } finally {
@@ -1564,6 +1661,7 @@ const generateImageVariation = async({
     savePrefix,
     referenceImageDataUrl = "",
     referenceImageDataUrls = [],
+    referenceFilename = "",
     useFacialFit = false,
     thinkingLevel = ""
 }) => {
@@ -1596,6 +1694,7 @@ const generateImageVariation = async({
             const facialFitResult = await runFacialFit({
                 sourceImageBase64: imageBase64,
                 referenceImageDataUrl: normalizedReferenceImages[0],
+                referenceFilename,
                 savePrefix
             });
             effectiveImageBase64 = facialFitResult.imageBase64;
@@ -1977,6 +2076,7 @@ app.post("/api/template-hairstyles", async(req, res) => {
                     prompt: finalPrompt,
                     savePrefix: resolvedTemplate.id || normalizeStyleKey(resolvedTemplate.filename),
                     referenceImageDataUrl,
+                    referenceFilename: resolvedTemplate.filename,
                     useFacialFit: true
                 });
 
@@ -2198,6 +2298,7 @@ app.post("/api/generated-hairstyle-variation", async(req, res) => {
                 prompt: finalPrompt,
                 savePrefix: `${normalizeStyleKey(lookName)}-variation`,
                 referenceImageDataUrls: referenceImageDataUrl ? [referenceImageDataUrl] : [],
+                referenceFilename: referenceKind === "portrait" ? normalizedHairColorReferenceFilename : "",
                 useFacialFit: referenceKind === "portrait"
             });
 

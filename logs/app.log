@@ -318,3 +318,26 @@ Log initialized. Server entries will append below.
   "imageGeneratorErrorLogFile": "C:\\Users\\alkhi\\BarberShopRevolution\\logs\\image-generator-errors.log"
 }
 
+[2026-04-13T20:45:35.411Z] [WARN] [facial-fit] Facial fit wrote to stderr.
+{
+  "requestLabel": "braided crown updo-variation",
+  "stderr": "INFO: Created TensorFlow Lite XNNPACK delegate for CPU.\nWARNING: All log messages before absl::InitializeLog() is called are written to STDERR\nW0000 00:00:1776113134.775437    4268 inference_feedback_manager.cc:114] Feedback manager requires a model with a single signature inference. Disabling support for feedback tensors.\nW0000 00:00:1776113134.820165    2576 inference_feedback_manager.cc:114] Feedback manager requires a model with a single signature inference. Disabling support for feedback tensors.\nW0000 00:00:1776113134.831387   43920 landmark_projection_calculator.cc:186] Using NORM_RECT without IMAGE_DIMENSIONS is only supported for the square ROI. Provide IMAGE_DIMENSIONS or use PROJECTION_MATRIX.\nFacial fit source: C:\\Users\\alkhi\\BarberShopRevolution\\generated\\facial-fit-oHuNBL\\source.jpg\r\nFacial fit reference: C:\\Users\\alkhi\\BarberShopRevolution\\generated\\facial-fit-oHuNBL\\reference.jpg\r\nFacial fit output: C:\\Users\\alkhi\\BarberShopRevolution\\zoomed\\braided crown updo-variation_zoomed_1776113129704_knvc01.png"
+}
+
+[2026-04-14T00:28:48.911Z] [INFO] [server] Server started.
+{
+  "port": 3013,
+  "model": "gemini-3.1-flash-image-preview",
+  "testMode": false,
+  "facialFit": true,
+  "appLogFile": "C:\\Users\\alkhi\\BarberShopRevolution\\logs\\app.log",
+  "imageGeneratorLogFile": "C:\\Users\\alkhi\\BarberShopRevolution\\logs\\image-generator.log",
+  "imageGeneratorErrorLogFile": "C:\\Users\\alkhi\\BarberShopRevolution\\logs\\image-generator-errors.log"
+}
+
+[2026-04-14T00:29:02.043Z] [WARN] [facial-fit] Facial fit wrote to stderr.
+{
+  "requestLabel": "beachy-textured-lob-with-blonde-balayage",
+  "stderr": "INFO: Created TensorFlow Lite XNNPACK delegate for CPU.\nWARNING: All log messages before absl::InitializeLog() is called are written to STDERR\nW0000 00:00:1776126541.685988   34724 inference_feedback_manager.cc:114] Feedback manager requires a model with a single signature inference. Disabling support for feedback tensors.\nW0000 00:00:1776126541.707837   34724 inference_feedback_manager.cc:114] Feedback manager requires a model with a single signature inference. Disabling support for feedback tensors.\nW0000 00:00:1776126541.722779   39192 landmark_projection_calculator.cc:186] Using NORM_RECT without IMAGE_DIMENSIONS is only supported for the square ROI. Provide IMAGE_DIMENSIONS or use PROJECTION_MATRIX.\nFacial fit source: C:\\Users\\alkhi\\BarberShopRevolution\\generated\\facial-fit-KLVNWY\\source.jpg\r\nFacial fit reference: C:\\Users\\alkhi\\BarberShopRevolution\\generated\\facial-fit-KLVNWY\\reference.png\r\nFacial fit output: C:\\Users\\alkhi\\BarberShopRevolution\\zoomed\\beachy-textured-lob-with-blonde-balayage_zoomed_1776126537729_fm199u.png\r\nFacial fit reference geometry: C:\\Users\\alkhi\\BarberShopRevolution\\face-geometry\\beachy-textured-lob-with-blonde-balayage.png.json"
+}
+
