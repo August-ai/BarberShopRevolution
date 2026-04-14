@@ -60,6 +60,10 @@ const TEST_MODE = parseBooleanEnv(
     process.env.TEST_MODE ?? process.env.NANO_BANANA_TEST_MODE,
     false
 );
+const TWO_PASS = parseBooleanEnv(
+    process.env.TWO_PASS ?? process.env.TwoPass,
+    false
+);
 const FACIAL_FIT = parseBooleanEnv(
     process.env.FACIAL_FIT ?? process.env.FacialFit,
     false
@@ -869,6 +873,12 @@ const getBlurredStyleReferenceDataUrl = (filename) => {
     );
 };
 
+const naturalLightingInstruction = "Match the new hair to the original image lighting so it looks natural.";
+const buildTwoPassHairFitPrompt = () => [
+    "Refine the hair so it fits the head more naturally.",
+    "Keep the exact same hairstyle, hair length, hair color, person, and background unchanged."
+].join(" ");
+
 const buildHairstyleEditPrompt = ({ hairstyleName, hairstylePrompt }) => {
     return [
         "Use the uploaded portrait as the source image.",
@@ -876,6 +886,7 @@ const buildHairstyleEditPrompt = ({ hairstyleName, hairstylePrompt }) => {
         "Preserve facial features, skin tone, expression, camera angle, pose, clothing, and background.",
         "Only change the hairstyle.",
         "The new hairstyle cannot have hair longer than in the current image provided.",
+        naturalLightingInstruction,
         "Make it realistic and fitting well important!",
         "Make the result photorealistic, flattering, and salon quality.",
         `Target hairstyle name: ${hairstyleName}.`,
@@ -883,14 +894,35 @@ const buildHairstyleEditPrompt = ({ hairstyleName, hairstylePrompt }) => {
     ].join(" ");
 };
 
-const buildTemplateEditPrompt = ({ templateName, templatePrompt, extraPrompt }) => {
+const buildPrecisionHairSwapPrompt = ({ specificHairDescription = "" }) => {
+    const normalizedSpecificHairDescription = String(specificHairDescription || "").trim();
+
     return [
-        "Replace image 1's hairstyle with image 2.",
-        "Transfer the hair type, color, and overall style from image 2 to image 1 identically and realistically so it fits well.",
-        "Keep everything else in image 1 the same, including the person and background.",
-        extraPrompt ? `Additional prompt: ${extraPrompt}` : ""
+        "You are a precision image compositor executing a photorealistic hair swap.",
+        "Use image 1 as the destination scene and subject.",
+        "Use image 2 as the absolute structural and stylistic reference for the hair.",
+        "Preserve 100% of the identity, facial features, expression, eyes, skin texture, and clothing of the person from image 1.",
+        "Keep the original background and all environmental elements in image 1 identical and untouched.",
+        "Replace the subject's entire existing hair volume with a new hairstyle.",
+        "The new style must match the specific structure, length, volume, and texture found in image 2.",
+        normalizedSpecificHairDescription ? `Specific hair direction: ${normalizedSpecificHairDescription}.` : "",
+        "The hairline transition from the forehead and temples to the new hair must be anatomically correct and flawlessly blended.",
+        "There must be absolutely no floating hair effect.",
+        "The new strands must appear to grow naturally from the scalp.",
+        "Re-orient the reference hairstyle from image 2 so it matches the exact head angle, tilt, and perspective of the subject in image 1.",
+        "Apply the ambient light temperature, intensity, and directionality from image 1 to the new hair.",
+        "Do not bring the lighting environment from image 2.",
+        "The new hair must cast realistic soft contact shadows onto the forehead, neck, and shoulders.",
+        "Render individual sharp hair strands, especially at the edges, and avoid a smooth or plastic look.",
+        "Match the focus depth of the new hair to the depth of field of the subject's face.",
+        "Make it realistic and fitting well important!",
+        "Keep the result photorealistic, flattering, and salon quality."
     ].filter(Boolean).join(" ");
 };
+
+const buildTemplateEditPrompt = ({ extraPrompt }) => buildPrecisionHairSwapPrompt({
+    specificHairDescription: extraPrompt
+});
 
 const buildRearViewPrompt = ({ lookName, lookDescription, angleLabel }) => {
     return [
@@ -899,6 +931,7 @@ const buildRearViewPrompt = ({ lookName, lookDescription, angleLabel }) => {
         "Preserve the haircut shape, length, layering, texture, density, and hair color.",
         "Keep the background unchanged.",
         "Do not redesign the hairstyle or change the person's identity.",
+        naturalLightingInstruction,
         "Make it realistic and fitting well important!",
         "Create a photorealistic salon-quality result.",
         `Rotate the viewpoint to show a ${angleLabel} of the hairstyle.`,
@@ -923,22 +956,25 @@ const buildPromptVariationPrompt = ({
         return extraPrompt;
     }
 
+    if (hasHairColorReference && hairColorReferenceKind === "portrait") {
+        return [
+            buildPrecisionHairSwapPrompt({
+                specificHairDescription: extraPrompt
+            }),
+            hairColorLabel ? `Requested hair color name: ${hairColorLabel}.` : "",
+            hairColorHex ? `Requested hair color value: ${hairColorHex}.` : ""
+        ].filter(Boolean).join(" ");
+    }
+
     return [
-        hasHairColorReference && hairColorReferenceKind === "portrait"
-            ? "Replace image 1's hair with image 2."
-            : "Edit image 1 only.",
-        hasHairColorReference && hairColorReferenceKind === "portrait"
-            ? "Transfer the hair type, color, and overall style from image 2 to image 1 identically and realistically so it fits well."
-            : "",
+        "Edit image 1 only.",
         !hasHairColorReference
             ? "Keep the same person and background in image 1. Only refine the hair realistically so it fits well."
-            : "",
-        hasHairColorReference && hairColorReferenceKind === "portrait"
-            ? "Keep everything else in image 1 the same, including the person and background."
             : "",
         hasHairColorReference && hairColorReferenceKind !== "portrait"
             ? "Match only the hair color in image 1 to image 2 and keep everything else in image 1 the same."
             : "",
+        naturalLightingInstruction,
         hairColorLabel ? `Requested hair color name: ${hairColorLabel}.` : "",
         hairColorHex ? `Requested hair color value: ${hairColorHex}.` : "",
         extraPrompt ? `Additional prompt: ${extraPrompt}` : ""
@@ -952,12 +988,17 @@ const buildHairColorOnlyPrompt = ({
     hairColorReferenceKind = ""
 }) => {
     if (hasHairColorReference) {
-        return "Edit image 1 only. Match only the hair color in image 2 to image 1 and keep everything else in image 1 the same. Same person and same hairstyle as the original image 1, only the hair color is changed.";
+        return [
+            "Edit image 1 only. Match only the hair color in image 2 to image 1 and keep everything else in image 1 the same.",
+            "Same person and same hairstyle as the original image 1, only the hair color is changed.",
+            naturalLightingInstruction
+        ].join(" ");
     }
 
     return [
         "Change the subject's hair color to the requested color.",
         "Keep everything else in image 1 the same, including the person, hairstyle shape, and background.",
+        naturalLightingInstruction,
         "Make it realistic and fitting well important!",
         hairColorLabel ? `Requested hair color name: ${hairColorLabel}.` : "",
         hairColorHex ? `Requested hair color value: ${hairColorHex}.` : ""
@@ -1663,7 +1704,8 @@ const generateImageVariation = async({
     referenceImageDataUrls = [],
     referenceFilename = "",
     useFacialFit = false,
-    thinkingLevel = ""
+    thinkingLevel = "",
+    useTwoPassRefinement = false
 }) => {
     const normalizedReferenceImages = [...referenceImageDataUrls];
 
@@ -1832,11 +1874,72 @@ const generateImageVariation = async({
                 maxAttempts: IMAGE_GENERATION_MAX_ATTEMPTS
             });
 
-            return {
+            const firstPassResult = {
                 imageUrl: `data:${imagePart.mimeType};base64,${imagePart.data}`,
                 savedFile,
                 testMode: false
             };
+
+            if (TWO_PASS && useTwoPassRefinement) {
+                const refinementPrompt = buildTwoPassHairFitPrompt();
+
+                writeImageGeneratorLog({
+                    level: "INFO",
+                    category: "two-pass",
+                    message: "Starting second-pass hair-fit refinement.",
+                    data: {
+                        requestLabel: savePrefix || "",
+                        refinementPrompt,
+                        firstPassSavedFile: savedFile
+                    }
+                });
+
+                try {
+                    const refinedResult = await generateImageVariation({
+                        imageBase64: firstPassResult.imageUrl,
+                        prompt: refinementPrompt,
+                        savePrefix: `${savePrefix || "image"}-pass-2`,
+                        useTwoPassRefinement: false
+                    });
+
+                    writeImageGeneratorLog({
+                        level: "INFO",
+                        category: "two-pass",
+                        message: "Second-pass hair-fit refinement completed.",
+                        data: {
+                            requestLabel: savePrefix || "",
+                            firstPassSavedFile: savedFile,
+                            secondPassSavedFile: refinedResult.savedFile || null
+                        }
+                    });
+
+                    return refinedResult;
+                } catch (refinementError) {
+                    writeAppLog({
+                        level: "WARN",
+                        category: "two-pass",
+                        message: "Second-pass hair-fit refinement failed. Returning the first-pass image.",
+                        data: {
+                            requestLabel: savePrefix || "",
+                            firstPassSavedFile: savedFile,
+                            refinementPrompt,
+                            error: serializeErrorForLog(refinementError)
+                        }
+                    });
+                    writeImageGeneratorLog({
+                        level: "WARN",
+                        category: "two-pass",
+                        message: "Second-pass hair-fit refinement failed. Returning the first-pass image.",
+                        data: {
+                            requestLabel: savePrefix || "",
+                            firstPassSavedFile: savedFile,
+                            error: serializeErrorForLog(refinementError)
+                        }
+                    });
+                }
+            }
+
+            return firstPassResult;
         } catch (error) {
             lastError = error;
 
@@ -2006,7 +2109,8 @@ app.post("/api/random-hairstyles", async(req, res) => {
                 const result = await generateImageVariation({
                     imageBase64,
                     prompt: finalPrompt,
-                    savePrefix: hairstyle.id || "hairstyle"
+                    savePrefix: hairstyle.id || "hairstyle",
+                    useTwoPassRefinement: true
                 });
 
                 results.push({
@@ -2077,7 +2181,8 @@ app.post("/api/template-hairstyles", async(req, res) => {
                     savePrefix: resolvedTemplate.id || normalizeStyleKey(resolvedTemplate.filename),
                     referenceImageDataUrl,
                     referenceFilename: resolvedTemplate.filename,
-                    useFacialFit: true
+                    useFacialFit: true,
+                    useTwoPassRefinement: true
                 });
 
                 let result;
@@ -2192,7 +2297,8 @@ app.post("/api/generated-hairstyle-views", async(req, res) => {
                     imageBase64,
                     prompt: finalPrompt,
                     savePrefix: `${normalizeStyleKey(lookName)}-${view.id}`,
-                    thinkingLevel: "LOW"
+                    thinkingLevel: "LOW",
+                    useTwoPassRefinement: false
                 });
 
                 results.push({
@@ -2277,6 +2383,11 @@ app.post("/api/generated-hairstyle-variation", async(req, res) => {
                 normalizedHairColorLabel ||
                 referenceImageDataUrl
             );
+            const hasHairColorRequest = Boolean(
+                normalizedHairColorHex ||
+                normalizedHairColorLabel ||
+                referenceImageDataUrl
+            );
             const effectiveExtraPrompt = normalizedExtraPrompt || buildHairColorOnlyPrompt({
                 hairColorHex: normalizedHairColorHex,
                 hairColorLabel: normalizedHairColorLabel,
@@ -2299,7 +2410,8 @@ app.post("/api/generated-hairstyle-variation", async(req, res) => {
                 savePrefix: `${normalizeStyleKey(lookName)}-variation`,
                 referenceImageDataUrls: referenceImageDataUrl ? [referenceImageDataUrl] : [],
                 referenceFilename: referenceKind === "portrait" ? normalizedHairColorReferenceFilename : "",
-                useFacialFit: referenceKind === "portrait"
+                useFacialFit: referenceKind === "portrait",
+                useTwoPassRefinement: !hasHairColorRequest
             });
 
             return {
@@ -2456,6 +2568,7 @@ app.listen(PORT, () => {
             port: PORT,
             model: MODEL_NAME,
             testMode: TEST_MODE,
+            twoPass: TWO_PASS,
             facialFit: FACIAL_FIT,
             appLogFile,
             imageGeneratorLogFile,

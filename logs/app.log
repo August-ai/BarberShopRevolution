@@ -341,3 +341,102 @@ Log initialized. Server entries will append below.
   "stderr": "INFO: Created TensorFlow Lite XNNPACK delegate for CPU.\nWARNING: All log messages before absl::InitializeLog() is called are written to STDERR\nW0000 00:00:1776126541.685988   34724 inference_feedback_manager.cc:114] Feedback manager requires a model with a single signature inference. Disabling support for feedback tensors.\nW0000 00:00:1776126541.707837   34724 inference_feedback_manager.cc:114] Feedback manager requires a model with a single signature inference. Disabling support for feedback tensors.\nW0000 00:00:1776126541.722779   39192 landmark_projection_calculator.cc:186] Using NORM_RECT without IMAGE_DIMENSIONS is only supported for the square ROI. Provide IMAGE_DIMENSIONS or use PROJECTION_MATRIX.\nFacial fit source: C:\\Users\\alkhi\\BarberShopRevolution\\generated\\facial-fit-KLVNWY\\source.jpg\r\nFacial fit reference: C:\\Users\\alkhi\\BarberShopRevolution\\generated\\facial-fit-KLVNWY\\reference.png\r\nFacial fit output: C:\\Users\\alkhi\\BarberShopRevolution\\zoomed\\beachy-textured-lob-with-blonde-balayage_zoomed_1776126537729_fm199u.png\r\nFacial fit reference geometry: C:\\Users\\alkhi\\BarberShopRevolution\\face-geometry\\beachy-textured-lob-with-blonde-balayage.png.json"
 }
 
+[2026-04-14T01:58:26.740Z] [WARN] [facial-fit] Facial fit wrote to stderr.
+{
+  "requestLabel": "beachy-center-part-waves",
+  "stderr": "INFO: Created TensorFlow Lite XNNPACK delegate for CPU.\nWARNING: All log messages before absl::InitializeLog() is called are written to STDERR\nW0000 00:00:1776131906.337930   36160 inference_feedback_manager.cc:114] Feedback manager requires a model with a single signature inference. Disabling support for feedback tensors.\nW0000 00:00:1776131906.363592   36160 inference_feedback_manager.cc:114] Feedback manager requires a model with a single signature inference. Disabling support for feedback tensors.\nW0000 00:00:1776131906.377475   51004 landmark_projection_calculator.cc:186] Using NORM_RECT without IMAGE_DIMENSIONS is only supported for the square ROI. Provide IMAGE_DIMENSIONS or use PROJECTION_MATRIX.\nFacial fit source: C:\\Users\\alkhi\\BarberShopRevolution\\generated\\facial-fit-hnskSN\\source.jpg\r\nFacial fit reference: C:\\Users\\alkhi\\BarberShopRevolution\\generated\\facial-fit-hnskSN\\reference.jpg\r\nFacial fit output: C:\\Users\\alkhi\\BarberShopRevolution\\zoomed\\beachy-center-part-waves_zoomed_1776131902961_6amd1d.png\r\nFacial fit reference geometry: C:\\Users\\alkhi\\BarberShopRevolution\\face-geometry\\beachy-center-part-waves.jpg.json"
+}
+
+[2026-04-14T01:59:02.161Z] [WARN] [facial-fit] Facial fit wrote to stderr.
+{
+  "requestLabel": "beachy-textured-lob-with-blonde-balayage",
+  "stderr": "INFO: Created TensorFlow Lite XNNPACK delegate for CPU.\nWARNING: All log messages before absl::InitializeLog() is called are written to STDERR\nW0000 00:00:1776131941.784615   48408 inference_feedback_manager.cc:114] Feedback manager requires a model with a single signature inference. Disabling support for feedback tensors.\nW0000 00:00:1776131941.808213   35372 inference_feedback_manager.cc:114] Feedback manager requires a model with a single signature inference. Disabling support for feedback tensors.\nW0000 00:00:1776131941.813658   31492 landmark_projection_calculator.cc:186] Using NORM_RECT without IMAGE_DIMENSIONS is only supported for the square ROI. Provide IMAGE_DIMENSIONS or use PROJECTION_MATRIX.\nFacial fit source: C:\\Users\\alkhi\\BarberShopRevolution\\generated\\facial-fit-rDAOnZ\\source.jpg\r\nFacial fit reference: C:\\Users\\alkhi\\BarberShopRevolution\\generated\\facial-fit-rDAOnZ\\reference.png\r\nFacial fit output: C:\\Users\\alkhi\\BarberShopRevolution\\zoomed\\beachy-textured-lob-with-blonde-balayage_zoomed_1776131939077_fgxfpj.png\r\nFacial fit reference geometry: C:\\Users\\alkhi\\BarberShopRevolution\\face-geometry\\beachy-textured-lob-with-blonde-balayage.png.json"
+}
+
+[2026-04-14T01:59:17.721Z] [WARN] [facial-fit] Facial fit wrote to stderr.
+{
+  "requestLabel": "cascading-butterfly-layers-with-chestnut-balayage",
+  "stderr": "INFO: Created TensorFlow Lite XNNPACK delegate for CPU.\nWARNING: All log messages before absl::InitializeLog() is called are written to STDERR\nW0000 00:00:1776131957.441097   50596 inference_feedback_manager.cc:114] Feedback manager requires a model with a single signature inference. Disabling support for feedback tensors.\nW0000 00:00:1776131957.460977   49080 inference_feedback_manager.cc:114] Feedback manager requires a model with a single signature inference. Disabling support for feedback tensors.\nW0000 00:00:1776131957.466725   10360 landmark_projection_calculator.cc:186] Using NORM_RECT without IMAGE_DIMENSIONS is only supported for the square ROI. Provide IMAGE_DIMENSIONS or use PROJECTION_MATRIX.\nFacial fit source: C:\\Users\\alkhi\\BarberShopRevolution\\generated\\facial-fit-H6eQKq\\source.jpg\r\nFacial fit reference: C:\\Users\\alkhi\\BarberShopRevolution\\generated\\facial-fit-H6eQKq\\reference.jpg\r\nFacial fit output: C:\\Users\\alkhi\\BarberShopRevolution\\zoomed\\cascading-butterfly-layers-with-chestnut-balayage_zoomed_1776131954898_ysoqw7.png\r\nFacial fit reference geometry: C:\\Users\\alkhi\\BarberShopRevolution\\face-geometry\\cascading-butterfly-layers-with-chestnut-balayage.jpg.json"
+}
+
+[2026-04-14T02:07:47.114Z] [WARN] [facial-fit] Facial fit wrote to stderr.
+{
+  "requestLabel": "beachy-textured-lob-with-blonde-balayage",
+  "stderr": "INFO: Created TensorFlow Lite XNNPACK delegate for CPU.\nWARNING: All log messages before absl::InitializeLog() is called are written to STDERR\nW0000 00:00:1776132466.771989   49352 inference_feedback_manager.cc:114] Feedback manager requires a model with a single signature inference. Disabling support for feedback tensors.\nW0000 00:00:1776132466.797852    7932 inference_feedback_manager.cc:114] Feedback manager requires a model with a single signature inference. Disabling support for feedback tensors.\nW0000 00:00:1776132466.803837   49352 landmark_projection_calculator.cc:186] Using NORM_RECT without IMAGE_DIMENSIONS is only supported for the square ROI. Provide IMAGE_DIMENSIONS or use PROJECTION_MATRIX.\nFacial fit source: C:\\Users\\alkhi\\BarberShopRevolution\\generated\\facial-fit-zbapia\\source.jpg\r\nFacial fit reference: C:\\Users\\alkhi\\BarberShopRevolution\\generated\\facial-fit-zbapia\\reference.png\r\nFacial fit output: C:\\Users\\alkhi\\BarberShopRevolution\\zoomed\\beachy-textured-lob-with-blonde-balayage_zoomed_1776132463694_vfg3y7.png\r\nFacial fit reference geometry: C:\\Users\\alkhi\\BarberShopRevolution\\face-geometry\\beachy-textured-lob-with-blonde-balayage.png.json"
+}
+
+[2026-04-14T02:08:08.073Z] [WARN] [facial-fit] Facial fit wrote to stderr.
+{
+  "requestLabel": "choppy-wolf-cut-with-piecey-fringe",
+  "stderr": "INFO: Created TensorFlow Lite XNNPACK delegate for CPU.\nWARNING: All log messages before absl::InitializeLog() is called are written to STDERR\nW0000 00:00:1776132487.600014    6784 inference_feedback_manager.cc:114] Feedback manager requires a model with a single signature inference. Disabling support for feedback tensors.\nW0000 00:00:1776132487.622660   49720 inference_feedback_manager.cc:114] Feedback manager requires a model with a single signature inference. Disabling support for feedback tensors.\nW0000 00:00:1776132487.627683   34996 landmark_projection_calculator.cc:186] Using NORM_RECT without IMAGE_DIMENSIONS is only supported for the square ROI. Provide IMAGE_DIMENSIONS or use PROJECTION_MATRIX.\nFacial fit source: C:\\Users\\alkhi\\BarberShopRevolution\\generated\\facial-fit-PnoQkZ\\source.jpg\r\nFacial fit reference: C:\\Users\\alkhi\\BarberShopRevolution\\generated\\facial-fit-PnoQkZ\\reference.png\r\nFacial fit output: C:\\Users\\alkhi\\BarberShopRevolution\\zoomed\\choppy-wolf-cut-with-piecey-fringe_zoomed_1776132484812_908h96.png\r\nFacial fit reference geometry: C:\\Users\\alkhi\\BarberShopRevolution\\face-geometry\\choppy-wolf-cut-with-piecey-fringe.png.json"
+}
+
+[2026-04-14T02:09:05.470Z] [INFO] [server] Server started.
+{
+  "port": 3013,
+  "model": "gemini-3.1-flash-image-preview",
+  "testMode": false,
+  "facialFit": false,
+  "appLogFile": "C:\\Users\\alkhi\\BarberShopRevolution\\logs\\app.log",
+  "imageGeneratorLogFile": "C:\\Users\\alkhi\\BarberShopRevolution\\logs\\image-generator.log",
+  "imageGeneratorErrorLogFile": "C:\\Users\\alkhi\\BarberShopRevolution\\logs\\image-generator-errors.log"
+}
+
+[2026-04-14T02:17:50.229Z] [INFO] [server] Server started.
+{
+  "port": 3013,
+  "model": "gemini-3.1-flash-image-preview",
+  "testMode": false,
+  "facialFit": false,
+  "appLogFile": "C:\\Users\\alkhi\\BarberShopRevolution\\logs\\app.log",
+  "imageGeneratorLogFile": "C:\\Users\\alkhi\\BarberShopRevolution\\logs\\image-generator.log",
+  "imageGeneratorErrorLogFile": "C:\\Users\\alkhi\\BarberShopRevolution\\logs\\image-generator-errors.log"
+}
+
+[2026-04-14T02:33:05.376Z] [INFO] [server] Server started.
+{
+  "port": 3013,
+  "model": "gemini-3.1-flash-image-preview",
+  "testMode": false,
+  "twoPass": true,
+  "facialFit": false,
+  "appLogFile": "C:\\Users\\alkhi\\BarberShopRevolution\\logs\\app.log",
+  "imageGeneratorLogFile": "C:\\Users\\alkhi\\BarberShopRevolution\\logs\\image-generator.log",
+  "imageGeneratorErrorLogFile": "C:\\Users\\alkhi\\BarberShopRevolution\\logs\\image-generator-errors.log"
+}
+
+[2026-04-14T03:06:54.090Z] [WARN] [generation-retry] Retrying Image Generator request left back view-variation after provider-side failure.
+{
+  "timestamp": "2026-04-14T03:06:54.085Z",
+  "attemptNumber": 2,
+  "maxAttempts": 3,
+  "retryDelayMs": 800,
+  "model": "gemini-3.1-flash-image-preview",
+  "testMode": false,
+  "requestLabel": "left back view-variation",
+  "prompt": "Edit image 1 only. Match only the hair color in image 2 to image 1 and keep everything else in image 1 the same. Same person and same hairstyle as the original image 1, only the hair color is changed. Match the new hair to the original image lighting so it looks natural.",
+  "imageCount": 2,
+  "images": [
+    {
+      "role": "source",
+      "imageNumber": 1,
+      "mimeType": "image/jpeg",
+      "approxBytes": 744369
+    },
+    {
+      "role": "reference",
+      "imageNumber": 2,
+      "mimeType": "image/jpeg",
+      "approxBytes": 197655
+    }
+  ],
+  "error": {
+    "name": "ApiError",
+    "message": "{\"error\":{\"code\":503,\"message\":\"Deadline expired before operation could complete.\",\"status\":\"UNAVAILABLE\"}}",
+    "publicMessage": "",
+    "promptBlocked": "",
+    "providerFailureSummary": "",
+    "stack": "ApiError: {\"error\":{\"code\":503,\"message\":\"Deadline expired before operation could complete.\",\"status\":\"UNAVAILABLE\"}}\n    at throwErrorIfNotOK (file:///C:/Users/alkhi/BarberShopRevolution/node_modules/@google/genai/dist/node/index.mjs:13341:30)\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async file:///C:/Users/alkhi/BarberShopRevolution/node_modules/@google/genai/dist/node/index.mjs:13044:13\n    at async Models.generateContent (file:///C:/Users/alkhi/BarberShopRevolution/node_modules/@google/genai/dist/node/index.mjs:14445:24)\n    at async generateImageVariation (file:///C:/Users/alkhi/BarberShopRevolution/server.js:1831:30)\n    at async runVariationAttempt (file:///C:/Users/alkhi/BarberShopRevolution/server.js:2401:28)\n    at async file:///C:/Users/alkhi/BarberShopRevolution/server.js:2421:32"
+  }
+}
+
