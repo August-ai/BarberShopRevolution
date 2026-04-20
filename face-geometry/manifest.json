@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-13T20:40:01.692281Z",
+  "generatedAt": "2026-04-14T23:31:07.424915Z",
   "stylesCount": 36,
   "failureCount": 0,
   "entries": [
@@ -16,16 +16,16 @@
       "geometryFile": "beachy-textured-lob-with-blonde-balayage.png.json",
       "geometryPath": "face-geometry/beachy-textured-lob-with-blonde-balayage.png.json",
       "sourceImage": "styles/beachy-textured-lob-with-blonde-balayage.png",
-      "blurredImage": "",
-      "linkedBlurredFilename": ""
+      "blurredImage": "blurred/beachy-textured-lob-with-blonde-balayage.png",
+      "linkedBlurredFilename": "beachy-textured-lob-with-blonde-balayage.png"
     },
     {
       "filename": "cascading-butterfly-layers-with-chestnut-balayage.jpg",
       "geometryFile": "cascading-butterfly-layers-with-chestnut-balayage.jpg.json",
       "geometryPath": "face-geometry/cascading-butterfly-layers-with-chestnut-balayage.jpg.json",
       "sourceImage": "styles/cascading-butterfly-layers-with-chestnut-balayage.jpg",
-      "blurredImage": "",
-      "linkedBlurredFilename": ""
+      "blurredImage": "blurred/cascading-butterfly-layers-with-chestnut-balayage.jpg",
+      "linkedBlurredFilename": "cascading-butterfly-layers-with-chestnut-balayage.jpg"
     },
     {
       "filename": "chin-length-glam-wavy-bob.jpg",
@@ -40,48 +40,48 @@
       "geometryFile": "choppy-wolf-cut-with-piecey-fringe.png.json",
       "geometryPath": "face-geometry/choppy-wolf-cut-with-piecey-fringe.png.json",
       "sourceImage": "styles/choppy-wolf-cut-with-piecey-fringe.png",
-      "blurredImage": "",
-      "linkedBlurredFilename": ""
+      "blurredImage": "blurred/choppy-wolf-cut-with-piecey-fringe.png",
+      "linkedBlurredFilename": "choppy-wolf-cut-with-piecey-fringe.png"
     },
     {
       "filename": "collarbone-lob-with-soft-flipped-ends.jpg",
       "geometryFile": "collarbone-lob-with-soft-flipped-ends.jpg.json",
       "geometryPath": "face-geometry/collarbone-lob-with-soft-flipped-ends.jpg.json",
       "sourceImage": "styles/collarbone-lob-with-soft-flipped-ends.jpg",
-      "blurredImage": "",
-      "linkedBlurredFilename": ""
+      "blurredImage": "blurred/collarbone-lob-with-soft-flipped-ends.jpg",
+      "linkedBlurredFilename": "collarbone-lob-with-soft-flipped-ends.jpg"
     },
     {
       "filename": "curly-shag-with-short-fringe.jpg",
       "geometryFile": "curly-shag-with-short-fringe.jpg.json",
       "geometryPath": "face-geometry/curly-shag-with-short-fringe.jpg.json",
       "sourceImage": "styles/curly-shag-with-short-fringe.jpg",
-      "blurredImage": "",
-      "linkedBlurredFilename": ""
+      "blurredImage": "blurred/curly-shag-with-short-fringe.jpg",
+      "linkedBlurredFilename": "curly-shag-with-short-fringe.jpg"
     },
     {
       "filename": "double-mini-buns-with-long-glam-waves.jpg",
       "geometryFile": "double-mini-buns-with-long-glam-waves.jpg.json",
       "geometryPath": "face-geometry/double-mini-buns-with-long-glam-waves.jpg.json",
       "sourceImage": "styles/double-mini-buns-with-long-glam-waves.jpg",
-      "blurredImage": "",
-      "linkedBlurredFilename": ""
+      "blurredImage": "blurred/double-mini-buns-with-long-glam-waves.jpg",
+      "linkedBlurredFilename": "double-mini-buns-with-long-glam-waves.jpg"
     },
     {
       "filename": "extra-long-layered-blowout-with-face-framing-volume.jpg",
       "geometryFile": "extra-long-layered-blowout-with-face-framing-volume.jpg.json",
       "geometryPath": "face-geometry/extra-long-layered-blowout-with-face-framing-volume.jpg.json",
       "sourceImage": "styles/extra-long-layered-blowout-with-face-framing-volume.jpg",
-      "blurredImage": "",
-      "linkedBlurredFilename": ""
+      "blurredImage": "blurred/extra-long-layered-blowout-with-face-framing-volume.jpg",
+      "linkedBlurredFilename": "extra-long-layered-blowout-with-face-framing-volume.jpg"
     },
     {
       "filename": "feathered-shag-with-curtain-bangs.jpg",
       "geometryFile": "feathered-shag-with-curtain-bangs.jpg.json",
       "geometryPath": "face-geometry/feathered-shag-with-curtain-bangs.jpg.json",
       "sourceImage": "styles/feathered-shag-with-curtain-bangs.jpg",
-      "blurredImage": "",
-      "linkedBlurredFilename": ""
+      "blurredImage": "blurred/feathered-shag-with-curtain-bangs.jpg",
+      "linkedBlurredFilename": "feathered-shag-with-curtain-bangs.jpg"
     },
     {
       "filename": "layered-long-bob-with-side-swept-bangs.jpg",
@@ -104,8 +104,8 @@
       "geometryFile": "long-butterfly-layers-with-curtain-bangs.jpg.json",
       "geometryPath": "face-geometry/long-butterfly-layers-with-curtain-bangs.jpg.json",
       "sourceImage": "styles/long-butterfly-layers-with-curtain-bangs.jpg",
-      "blurredImage": "",
-      "linkedBlurredFilename": ""
+      "blurredImage": "blurred/long-butterfly-layers-with-curtain-bangs.jpg",
+      "linkedBlurredFilename": "long-butterfly-layers-with-curtain-bangs.jpg"
     },
     {
       "filename": "long-face-framing-layers-with-curtain-bangs.png",
@@ -120,48 +120,48 @@
       "geometryFile": "long-hollywood-waves-with-middle-part.jpg.json",
       "geometryPath": "face-geometry/long-hollywood-waves-with-middle-part.jpg.json",
       "sourceImage": "styles/long-hollywood-waves-with-middle-part.jpg",
-      "blurredImage": "",
-      "linkedBlurredFilename": ""
+      "blurredImage": "blurred/long-hollywood-waves-with-middle-part.jpg",
+      "linkedBlurredFilename": "long-hollywood-waves-with-middle-part.jpg"
     },
     {
       "filename": "long-sleek-cut-with-full-blunt-bangs.jpg",
       "geometryFile": "long-sleek-cut-with-full-blunt-bangs.jpg.json",
       "geometryPath": "face-geometry/long-sleek-cut-with-full-blunt-bangs.jpg.json",
       "sourceImage": "styles/long-sleek-cut-with-full-blunt-bangs.jpg",
-      "blurredImage": "",
-      "linkedBlurredFilename": ""
+      "blurredImage": "blurred/long-sleek-cut-with-full-blunt-bangs.jpg",
+      "linkedBlurredFilename": "long-sleek-cut-with-full-blunt-bangs.jpg"
     },
     {
       "filename": "long-voluminous-blowout-layers.jpg",
       "geometryFile": "long-voluminous-blowout-layers.jpg.json",
       "geometryPath": "face-geometry/long-voluminous-blowout-layers.jpg.json",
       "sourceImage": "styles/long-voluminous-blowout-layers.jpg",
-      "blurredImage": "",
-      "linkedBlurredFilename": ""
+      "blurredImage": "blurred/long-voluminous-blowout-layers.jpg",
+      "linkedBlurredFilename": "long-voluminous-blowout-layers.jpg"
     },
     {
       "filename": "medium-brown-long-bob-with-highlighted-face-framing-layers.jpg",
       "geometryFile": "medium-brown-long-bob-with-highlighted-face-framing-layers.jpg.json",
       "geometryPath": "face-geometry/medium-brown-long-bob-with-highlighted-face-framing-layers.jpg.json",
       "sourceImage": "styles/medium-brown-long-bob-with-highlighted-face-framing-layers.jpg",
-      "blurredImage": "",
-      "linkedBlurredFilename": ""
+      "blurredImage": "blurred/medium-brown-long-bob-with-highlighted-face-framing-layers.jpg",
+      "linkedBlurredFilename": "medium-brown-long-bob-with-highlighted-face-framing-layers.jpg"
     },
     {
       "filename": "medium-soft-waves-with-curtain-bangs.jpg",
       "geometryFile": "medium-soft-waves-with-curtain-bangs.jpg.json",
       "geometryPath": "face-geometry/medium-soft-waves-with-curtain-bangs.jpg.json",
       "sourceImage": "styles/medium-soft-waves-with-curtain-bangs.jpg",
-      "blurredImage": "",
-      "linkedBlurredFilename": ""
+      "blurredImage": "blurred/medium-soft-waves-with-curtain-bangs.jpg",
+      "linkedBlurredFilename": "medium-soft-waves-with-curtain-bangs.jpg"
     },
     {
       "filename": "polished-retro-glam-blowout.jpg",
       "geometryFile": "polished-retro-glam-blowout.jpg.json",
       "geometryPath": "face-geometry/polished-retro-glam-blowout.jpg.json",
       "sourceImage": "styles/polished-retro-glam-blowout.jpg",
-      "blurredImage": "",
-      "linkedBlurredFilename": ""
+      "blurredImage": "blurred/polished-retro-glam-blowout.jpg",
+      "linkedBlurredFilename": "polished-retro-glam-blowout.jpg"
     },
     {
       "filename": "polished-rounded-classic-bob.jpg",
@@ -184,16 +184,16 @@
       "geometryFile": "shaggy-lob-with-curtain-bangs.jpg.json",
       "geometryPath": "face-geometry/shaggy-lob-with-curtain-bangs.jpg.json",
       "sourceImage": "styles/shaggy-lob-with-curtain-bangs.jpg",
-      "blurredImage": "",
-      "linkedBlurredFilename": ""
+      "blurredImage": "blurred/shaggy-lob-with-curtain-bangs.jpg",
+      "linkedBlurredFilename": "shaggy-lob-with-curtain-bangs.jpg"
     },
     {
       "filename": "short-curly-bob-with-defined-volume.jpg",
       "geometryFile": "short-curly-bob-with-defined-volume.jpg.json",
       "geometryPath": "face-geometry/short-curly-bob-with-defined-volume.jpg.json",
       "sourceImage": "styles/short-curly-bob-with-defined-volume.jpg",
-      "blurredImage": "",
-      "linkedBlurredFilename": ""
+      "blurredImage": "blurred/short-curly-bob-with-defined-volume.jpg",
+      "linkedBlurredFilename": "short-curly-bob-with-defined-volume.jpg"
     },
     {
       "filename": "short-curly-bob-with-side-swept-fringe.jpg",
@@ -216,16 +216,16 @@
       "geometryFile": "sleek-center-part-lob.jpg.json",
       "geometryPath": "face-geometry/sleek-center-part-lob.jpg.json",
       "sourceImage": "styles/sleek-center-part-lob.jpg",
-      "blurredImage": "",
-      "linkedBlurredFilename": ""
+      "blurredImage": "blurred/sleek-center-part-lob.jpg",
+      "linkedBlurredFilename": "sleek-center-part-lob.jpg"
     },
     {
       "filename": "sleek-collarbone-lob-with-soft-beveled-ends.jpg",
       "geometryFile": "sleek-collarbone-lob-with-soft-beveled-ends.jpg.json",
       "geometryPath": "face-geometry/sleek-collarbone-lob-with-soft-beveled-ends.jpg.json",
       "sourceImage": "styles/sleek-collarbone-lob-with-soft-beveled-ends.jpg",
-      "blurredImage": "",
-      "linkedBlurredFilename": ""
+      "blurredImage": "blurred/sleek-collarbone-lob-with-soft-beveled-ends.jpg",
+      "linkedBlurredFilename": "sleek-collarbone-lob-with-soft-beveled-ends.jpg"
     },
     {
       "filename": "sleek-top-knot-with-face-framing-tendrils.png",
@@ -240,40 +240,40 @@
       "geometryFile": "straight-textured-cut-with-curtain-fringe.jpg.json",
       "geometryPath": "face-geometry/straight-textured-cut-with-curtain-fringe.jpg.json",
       "sourceImage": "styles/straight-textured-cut-with-curtain-fringe.jpg",
-      "blurredImage": "",
-      "linkedBlurredFilename": ""
+      "blurredImage": "blurred/straight-textured-cut-with-curtain-fringe.jpg",
+      "linkedBlurredFilename": "straight-textured-cut-with-curtain-fringe.jpg"
     },
     {
       "filename": "textured-lob-with-bold-money-piece-highlights.webp",
       "geometryFile": "textured-lob-with-bold-money-piece-highlights.webp.json",
       "geometryPath": "face-geometry/textured-lob-with-bold-money-piece-highlights.webp.json",
       "sourceImage": "styles/textured-lob-with-bold-money-piece-highlights.webp",
-      "blurredImage": "",
-      "linkedBlurredFilename": ""
+      "blurredImage": "blurred/textured-lob-with-bold-money-piece-highlights.webp",
+      "linkedBlurredFilename": "textured-lob-with-bold-money-piece-highlights.webp"
     },
     {
       "filename": "textured-short-bob-with-face-framing-bangs.jpg",
       "geometryFile": "textured-short-bob-with-face-framing-bangs.jpg.json",
       "geometryPath": "face-geometry/textured-short-bob-with-face-framing-bangs.jpg.json",
       "sourceImage": "styles/textured-short-bob-with-face-framing-bangs.jpg",
-      "blurredImage": "",
-      "linkedBlurredFilename": ""
+      "blurredImage": "blurred/textured-short-bob-with-face-framing-bangs.jpg",
+      "linkedBlurredFilename": "textured-short-bob-with-face-framing-bangs.jpg"
     },
     {
       "filename": "textured-wavy-lob-with-money-piece-highlights.jpg",
       "geometryFile": "textured-wavy-lob-with-money-piece-highlights.jpg.json",
       "geometryPath": "face-geometry/textured-wavy-lob-with-money-piece-highlights.jpg.json",
       "sourceImage": "styles/textured-wavy-lob-with-money-piece-highlights.jpg",
-      "blurredImage": "",
-      "linkedBlurredFilename": ""
+      "blurredImage": "blurred/textured-wavy-lob-with-money-piece-highlights.jpg",
+      "linkedBlurredFilename": "textured-wavy-lob-with-money-piece-highlights.jpg"
     },
     {
       "filename": "tousled-shag-with-brow-skimming-bangs.jpg",
       "geometryFile": "tousled-shag-with-brow-skimming-bangs.jpg.json",
       "geometryPath": "face-geometry/tousled-shag-with-brow-skimming-bangs.jpg.json",
       "sourceImage": "styles/tousled-shag-with-brow-skimming-bangs.jpg",
-      "blurredImage": "",
-      "linkedBlurredFilename": ""
+      "blurredImage": "blurred/tousled-shag-with-brow-skimming-bangs.jpg",
+      "linkedBlurredFilename": "tousled-shag-with-brow-skimming-bangs.jpg"
     },
     {
       "filename": "tousled-side-part-bob.jpg",

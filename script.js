@@ -28,6 +28,8 @@ const generationProgressImage = document.getElementById("generationProgressImage
 const generationProgressKicker = document.getElementById("generationProgressKicker");
 const generationProgressTitle = document.getElementById("generationProgressTitle");
 const generationProgressText = document.getElementById("generationProgressText");
+const generationProgressFill = document.getElementById("generationProgressFill");
+const generationProgressPercent = document.getElementById("generationProgressPercent");
 const resultGrid = document.getElementById("resultGrid");
 const statusMessage = document.getElementById("statusMessage");
 const heroCard = document.querySelector(".hero-card");
@@ -45,6 +47,8 @@ const lightboxDescription = document.getElementById("lightboxDescription");
 const lightboxLoadingOverlay = document.getElementById("lightboxLoadingOverlay");
 const lightboxLoadingTitle = document.getElementById("lightboxLoadingTitle");
 const lightboxLoadingText = document.getElementById("lightboxLoadingText");
+const lightboxLoadingFill = document.getElementById("lightboxLoadingFill");
+const lightboxLoadingPercent = document.getElementById("lightboxLoadingPercent");
 const generateViewsButton = document.getElementById("generateViewsButton");
 const viewStatusMessage = document.getElementById("viewStatusMessage");
 const variationPromptInput = document.getElementById("variationPromptInput");
@@ -85,6 +89,9 @@ const LIGHTBOX_MARKUP_ERASE_SIZE = 18;
 const IMAGE_TRANSFER_MAX_DIMENSION = 1600;
 const IMAGE_TRANSFER_QUALITY = 0.86;
 const IMAGE_TRANSFER_MIME_TYPE = "image/jpeg";
+const LOADER_TARGET_DURATION_MS = 90 * 1000;
+const LOADER_HOLD_PERCENT = 99;
+const LOADER_COMPLETE_HOLD_MS = 220;
 const COMMON_HAIR_COLORS = [
   {
     hex: "#171311",
@@ -135,6 +142,177 @@ let isVariationHairColorCustomVisible = false;
 let selectedVariationHairColor = "";
 const lightboxMarkupStore = new Map();
 const loadedHairColorPreviewUrls = new Set();
+const createProgressController = (fillElement, percentElement) => ({
+  fillElement,
+  percentElement,
+  timerId: 0,
+  hideTimeoutId: 0,
+  startedAt: 0,
+  milestones: [],
+  currentPercent: 0,
+  updateIntervalMs: 200
+});
+
+const generationProgressController = createProgressController(
+  generationProgressFill,
+  generationProgressPercent
+);
+const lightboxProgressController = createProgressController(
+  lightboxLoadingFill,
+  lightboxLoadingPercent
+);
+
+const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+const easeProgress = (value) => (
+  value < 0.5
+    ? 2 * value * value
+    : 1 - (Math.pow(-2 * value + 2, 2) / 2)
+);
+
+const buildProgressMilestones = (targetDurationMs = LOADER_TARGET_DURATION_MS) => {
+  const totalDuration = Math.max(1, targetDurationMs);
+  const stages = [
+    { timeRatio: 0.16 + (Math.random() * 0.06), minIncrease: 10, maxIncrease: 16, maxPercent: 22 },
+    { timeRatio: 0.34 + (Math.random() * 0.08), minIncrease: 12, maxIncrease: 18, maxPercent: 42 },
+    { timeRatio: 0.56 + (Math.random() * 0.08), minIncrease: 14, maxIncrease: 18, maxPercent: 64 },
+    { timeRatio: 0.76 + (Math.random() * 0.08), minIncrease: 12, maxIncrease: 16, maxPercent: 82 },
+    { timeRatio: 0.9 + (Math.random() * 0.04), minIncrease: 8, maxIncrease: 12, maxPercent: 94 }
+  ];
+  const milestones = [{ timeMs: 0, percent: 0 }];
+  let currentPercent = 0;
+
+  stages.forEach((stage) => {
+    currentPercent = Math.min(
+      stage.maxPercent,
+      currentPercent + stage.minIncrease + (Math.random() * (stage.maxIncrease - stage.minIncrease))
+    );
+    milestones.push({
+      timeMs: Math.round(totalDuration * stage.timeRatio),
+      percent: currentPercent
+    });
+  });
+
+  milestones.push({
+    timeMs: totalDuration,
+    percent: LOADER_HOLD_PERCENT
+  });
+
+  return milestones;
+};
+
+const getProgressPercentFromMilestones = (milestones, elapsedMs) => {
+  if (!Array.isArray(milestones) || milestones.length === 0) {
+    return 0;
+  }
+
+  const clampedElapsedMs = Math.max(0, elapsedMs);
+
+  for (let index = 1; index < milestones.length; index += 1) {
+    const previousMilestone = milestones[index - 1];
+    const nextMilestone = milestones[index];
+
+    if (clampedElapsedMs <= nextMilestone.timeMs) {
+      const spanMs = Math.max(1, nextMilestone.timeMs - previousMilestone.timeMs);
+      const rawProgress = (clampedElapsedMs - previousMilestone.timeMs) / spanMs;
+      const easedProgress = easeProgress(clamp(rawProgress, 0, 1));
+
+      return previousMilestone.percent
+        + ((nextMilestone.percent - previousMilestone.percent) * easedProgress);
+    }
+  }
+
+  return milestones[milestones.length - 1].percent;
+};
+
+const renderProgressController = (controller, percent) => {
+  if (!controller?.fillElement || !controller?.percentElement) {
+    return;
+  }
+
+  controller.currentPercent = clamp(percent, controller.currentPercent, 100);
+  controller.fillElement.style.setProperty("--progress-percent", `${controller.currentPercent}%`);
+  controller.percentElement.textContent = `${Math.round(controller.currentPercent)}%`;
+};
+
+const stopProgressController = (controller) => {
+  if (!controller) {
+    return;
+  }
+
+  if (controller.timerId) {
+    window.clearInterval(controller.timerId);
+    controller.timerId = 0;
+  }
+
+  if (controller.hideTimeoutId) {
+    window.clearTimeout(controller.hideTimeoutId);
+    controller.hideTimeoutId = 0;
+  }
+};
+
+const resetProgressController = (controller) => {
+  stopProgressController(controller);
+
+  if (!controller) {
+    return;
+  }
+
+  controller.startedAt = 0;
+  controller.milestones = [];
+  controller.currentPercent = 0;
+
+  if (controller.fillElement) {
+    controller.fillElement.style.setProperty("--progress-percent", "0%");
+  }
+
+  if (controller.percentElement) {
+    controller.percentElement.textContent = "0%";
+  }
+};
+
+const startProgressController = (controller) => {
+  if (!controller) {
+    return;
+  }
+
+  resetProgressController(controller);
+  controller.startedAt = performance.now();
+  controller.milestones = buildProgressMilestones();
+  controller.updateIntervalMs = Math.round(150 + (Math.random() * 120));
+
+  const update = () => {
+    const elapsedMs = performance.now() - controller.startedAt;
+    const nextPercent = getProgressPercentFromMilestones(controller.milestones, elapsedMs);
+    renderProgressController(controller, nextPercent);
+  };
+
+  update();
+  controller.timerId = window.setInterval(update, controller.updateIntervalMs);
+};
+
+const completeProgressController = (controller, onComplete) => {
+  if (!controller) {
+    if (typeof onComplete === "function") {
+      onComplete();
+    }
+    return;
+  }
+
+  if (controller.timerId) {
+    window.clearInterval(controller.timerId);
+    controller.timerId = 0;
+  }
+
+  renderProgressController(controller, 100);
+
+  if (typeof onComplete === "function") {
+    controller.hideTimeoutId = window.setTimeout(() => {
+      controller.hideTimeoutId = 0;
+      onComplete();
+    }, LOADER_COMPLETE_HOLD_MS);
+  }
+};
 
 const resolveHairColorPreviewUrl = (color) => (
   color.imageUrl.startsWith("http") ? color.imageUrl : `${API_BASE_URL}${color.imageUrl}`
@@ -820,13 +998,16 @@ const setGenerationProgressState = ({
   title = "Generating your new hairstyle",
   text = "Your source image is being used to build the next results."
 }) => {
-  generationProgressCard.classList.toggle("is-hidden", !active);
-  generationPanel.setAttribute("aria-busy", String(active));
-
   if (!active) {
+    resetProgressController(generationProgressController);
+    generationProgressCard.classList.add("is-hidden");
+    generationPanel.setAttribute("aria-busy", "false");
     generationProgressImage.removeAttribute("src");
     return;
   }
+
+  generationProgressCard.classList.toggle("is-hidden", !active);
+  generationPanel.setAttribute("aria-busy", String(active));
 
   generationProgressKicker.textContent = kicker;
   generationProgressTitle.textContent = title;
@@ -837,6 +1018,17 @@ const setGenerationProgressState = ({
   } else {
     generationProgressImage.removeAttribute("src");
   }
+
+  startProgressController(generationProgressController);
+};
+
+const completeGenerationProgressState = () => {
+  completeProgressController(generationProgressController, () => {
+    generationProgressCard.classList.add("is-hidden");
+    generationPanel.setAttribute("aria-busy", "false");
+    generationProgressImage.removeAttribute("src");
+    resetProgressController(generationProgressController);
+  });
 };
 
 const setLightboxLoadingState = ({
@@ -844,16 +1036,29 @@ const setLightboxLoadingState = ({
   title = "Generating",
   text = "This selected image is being used as the source for the next request."
 }) => {
-  lightboxImageShell.classList.toggle("is-loading", active);
-  lightboxLoadingOverlay.classList.toggle("is-hidden", !active);
-  syncLightboxMarkupToolState();
-
   if (!active) {
+    resetProgressController(lightboxProgressController);
+    lightboxImageShell.classList.remove("is-loading");
+    lightboxLoadingOverlay.classList.add("is-hidden");
+    syncLightboxMarkupToolState();
     return;
   }
 
+  lightboxImageShell.classList.add("is-loading");
+  lightboxLoadingOverlay.classList.remove("is-hidden");
+  syncLightboxMarkupToolState();
   lightboxLoadingTitle.textContent = title;
   lightboxLoadingText.textContent = text;
+  startProgressController(lightboxProgressController);
+};
+
+const completeLightboxLoadingState = () => {
+  completeProgressController(lightboxProgressController, () => {
+    lightboxImageShell.classList.remove("is-loading");
+    lightboxLoadingOverlay.classList.add("is-hidden");
+    syncLightboxMarkupToolState();
+    resetProgressController(lightboxProgressController);
+  });
 };
 
 const openLightbox = (imageUrl, imageAlt) => {
@@ -1814,7 +2019,7 @@ const requestTemplateHairstyles = async ({ imageBase64, templates, extraPrompt }
         id: template.id,
         name: template.name,
         filename: template.filename,
-        imagePath: template.imageUrl || (template.filename ? `/styles/${template.filename}` : ""),
+        imagePath: template.filename ? `/styles/${template.filename}` : "",
         prompt: template.prompt
       })),
       extraPrompt
@@ -1928,6 +2133,7 @@ const handleGenerateViews = async () => {
     text: "The selected result is being used to create additional back-angle views."
   });
   setBusyState(true);
+  let requestCompleted = false;
 
   try {
     const imageBase64 = await getImageDataUrlFromUrl(resultReference.imageUrl);
@@ -1938,6 +2144,7 @@ const handleGenerateViews = async () => {
       sourceImagePath: getResultConsolePath(resultReference)
     });
 
+    requestCompleted = true;
     resultReference.followUpViews = results;
     if (activeLightboxResult === resultReference) {
       viewStatusMessage.textContent = "Your extra back-angle views are ready.";
@@ -1955,7 +2162,11 @@ const handleGenerateViews = async () => {
     }
   } finally {
     if (activeLightboxResult === resultReference) {
-      setLightboxLoadingState({ active: false });
+      if (requestCompleted) {
+        completeLightboxLoadingState();
+      } else {
+        setLightboxLoadingState({ active: false });
+      }
     }
 
     setBusyState(false);
@@ -2017,6 +2228,7 @@ const handleGeneratePromptVariation = async () => {
         : "The selected result is being used to create your new variation."
   });
   setBusyState(true);
+  let requestCompleted = false;
 
   try {
     const imageBase64 = await getImageDataUrlFromUrl(resultReference.imageUrl);
@@ -2059,6 +2271,7 @@ const handleGeneratePromptVariation = async () => {
       hairColorSwatchBase64
     });
 
+    requestCompleted = true;
     resultReference.promptVariationResult = result;
     if (activeLightboxResult === resultReference) {
       variationStatusMessage.textContent = hairColorHex && !extraPrompt
@@ -2082,7 +2295,11 @@ const handleGeneratePromptVariation = async () => {
     }
   } finally {
     if (activeLightboxResult === resultReference) {
-      setLightboxLoadingState({ active: false });
+      if (requestCompleted) {
+        completeLightboxLoadingState();
+      } else {
+        setLightboxLoadingState({ active: false });
+      }
     }
 
     setBusyState(false);
@@ -2117,6 +2334,7 @@ const handleRandomHairstyles = async () => {
   scrollToGenerationPanel();
   setBusyState(true);
   setStatus("Creating five hairstyle variations.");
+  let requestCompleted = false;
 
   try {
     const imageBase64 = await getSelectedImageDataUrl();
@@ -2125,6 +2343,7 @@ const handleRandomHairstyles = async () => {
       hairstyles: selectedHairstyles
     });
 
+    requestCompleted = true;
     renderGenerationResults(cards, results);
     setStatus("Your hairstyle variations are ready.");
   } catch (error) {
@@ -2137,7 +2356,11 @@ const handleRandomHairstyles = async () => {
     renderGenerationResults(cards, fallbackResults);
     setStatus(error.message);
   } finally {
-    setGenerationProgressState({ active: false });
+    if (requestCompleted) {
+      completeGenerationProgressState();
+    } else {
+      setGenerationProgressState({ active: false });
+    }
     setBusyState(false);
   }
 };
@@ -2217,6 +2440,7 @@ const handleTemplateNext = async () => {
   }
   setBusyState(true);
   setStatus("Creating your selected hairstyle looks.");
+  let requestCompleted = false;
 
   try {
     const imageBase64 = await getSelectedImageDataUrl();
@@ -2226,6 +2450,7 @@ const handleTemplateNext = async () => {
       extraPrompt
     });
 
+    requestCompleted = true;
     renderGenerationResults(cards, results);
     scrollToResultBatch(batchAnchor || cards[0]);
     setStatus(hasExistingResults
@@ -2242,7 +2467,11 @@ const handleTemplateNext = async () => {
     scrollToResultBatch(batchAnchor || cards[0]);
     setStatus(error.message);
   } finally {
-    setGenerationProgressState({ active: false });
+    if (requestCompleted) {
+      completeGenerationProgressState();
+    } else {
+      setGenerationProgressState({ active: false });
+    }
     setBusyState(false);
   }
 };

@@ -1,0 +1,109 @@
+{
+  "updatedAt": "2026-04-15T01:48:13.121Z",
+  "totalCompleted": 11,
+  "totalDurationMs": 215088,
+  "averageDurationMs": 19553.45,
+  "minDurationMs": 10177,
+  "maxDurationMs": 36537,
+  "recent": [
+    {
+      "timestamp": "2026-04-15T01:48:13.121Z",
+      "requestLabel": "right back view-variation",
+      "savePrefix": "right back view-variation",
+      "durationMs": 36537,
+      "attemptNumber": 1,
+      "referenceImageCount": 1,
+      "savedFile": "right back view-variation_1776217693112_ul76fv.jpg"
+    },
+    {
+      "timestamp": "2026-04-15T01:47:19.113Z",
+      "requestLabel": "right back view-variation",
+      "savePrefix": "right back view-variation",
+      "durationMs": 19151,
+      "attemptNumber": 1,
+      "referenceImageCount": 1,
+      "savedFile": "right back view-variation_1776217639103_glqn4h.jpg"
+    },
+    {
+      "timestamp": "2026-04-15T01:46:39.310Z",
+      "requestLabel": "right back view-variation",
+      "savePrefix": "right back view-variation",
+      "durationMs": 10177,
+      "attemptNumber": 1,
+      "referenceImageCount": 1,
+      "savedFile": "right back view-variation_1776217599301_9575zs.jpg"
+    },
+    {
+      "timestamp": "2026-04-15T01:45:50.870Z",
+      "requestLabel": "short curly bob with defined volume-right-back-view",
+      "savePrefix": "short curly bob with defined volume-right-back-view",
+      "durationMs": 13025,
+      "attemptNumber": 1,
+      "referenceImageCount": 0,
+      "savedFile": "short curly bob with defined volume-right-back-view_1776217550859_rgepl1.jpg"
+    },
+    {
+      "timestamp": "2026-04-15T01:45:37.829Z",
+      "requestLabel": "short curly bob with defined volume-left-back-view",
+      "savePrefix": "short curly bob with defined volume-left-back-view",
+      "durationMs": 18084,
+      "attemptNumber": 1,
+      "referenceImageCount": 0,
+      "savedFile": "short curly bob with defined volume-left-back-view_1776217537820_heg38c.jpg"
+    },
+    {
+      "timestamp": "2026-04-15T01:44:39.603Z",
+      "requestLabel": "short-curly-bob-with-defined-volume",
+      "savePrefix": "short-curly-bob-with-defined-volume",
+      "durationMs": 27153,
+      "attemptNumber": 1,
+      "referenceImageCount": 1,
+      "savedFile": "short-curly-bob-with-defined-volume_1776217479593_a1dkss.jpg"
+    },
+    {
+      "timestamp": "2026-04-15T01:44:12.419Z",
+      "requestLabel": "long-face-framing-layers-with-curtain-bangs",
+      "savePrefix": "long-face-framing-layers-with-curtain-bangs",
+      "durationMs": 15910,
+      "attemptNumber": 1,
+      "referenceImageCount": 1,
+      "savedFile": "long-face-framing-layers-with-curtain-bangs_1776217452350_ks327k.jpg"
+    },
+    {
+      "timestamp": "2026-04-14T23:48:19.344Z",
+      "requestLabel": "tousled-side-part-bob",
+      "savePrefix": "tousled-side-part-bob",
+      "durationMs": 12752,
+      "attemptNumber": 1,
+      "referenceImageCount": 1,
+      "savedFile": "tousled-side-part-bob_1776210499330_rsvw36.jpg"
+    },
+    {
+      "timestamp": "2026-04-14T23:48:06.559Z",
+      "requestLabel": "tousled-shag-with-brow-skimming-bangs",
+      "savePrefix": "tousled-shag-with-brow-skimming-bangs",
+      "durationMs": 19961,
+      "attemptNumber": 1,
+      "referenceImageCount": 1,
+      "savedFile": "tousled-shag-with-brow-skimming-bangs_1776210486545_84cuxn.jpg"
+    },
+    {
+      "timestamp": "2026-04-14T23:47:17.354Z",
+      "requestLabel": "voluminous-70s-layered-blowout",
+      "savePrefix": "voluminous-70s-layered-blowout",
+      "durationMs": 19744,
+      "attemptNumber": 1,
+      "referenceImageCount": 1,
+      "savedFile": "voluminous-70s-layered-blowout_1776210437342_omypwy.jpg"
+    },
+    {
+      "timestamp": "2026-04-14T23:42:20.619Z",
+      "requestLabel": "short-curly-bob-with-side-swept-fringe",
+      "savePrefix": "short-curly-bob-with-side-swept-fringe",
+      "durationMs": 22594,
+      "attemptNumber": 1,
+      "referenceImageCount": 1,
+      "savedFile": "short-curly-bob-with-side-swept-fringe_1776210140600_edezou.jpg"
+    }
+  ]
+}

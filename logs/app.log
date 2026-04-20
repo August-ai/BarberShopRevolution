@@ -440,3 +440,54 @@ Log initialized. Server entries will append below.
   }
 }
 
+[2026-04-14T23:33:41.631Z] [INFO] [server] Server started.
+{
+  "port": 3013,
+  "model": "gemini-3.1-flash-image-preview",
+  "testMode": false,
+  "twoPass": false,
+  "facialFit": false,
+  "appLogFile": "C:\\Users\\alkhi\\BarberShopRevolution\\logs\\app.log",
+  "imageGeneratorLogFile": "C:\\Users\\alkhi\\BarberShopRevolution\\logs\\image-generator.log",
+  "imageGeneratorErrorLogFile": "C:\\Users\\alkhi\\BarberShopRevolution\\logs\\image-generator-errors.log",
+  "generationMetricsFile": "C:\\Users\\alkhi\\BarberShopRevolution\\logs\\generation-metrics.json"
+}
+
+[2026-04-14T23:35:23.620Z] [ERROR] [generation-error] /api/template-hairstyles failed during template-option.
+{
+  "route": "/api/template-hairstyles",
+  "stage": "template-option",
+  "context": {
+    "templateId": "beachy-center-part-waves",
+    "templateFilename": "beachy-center-part-waves.jpg",
+    "templateName": "Beachy Center-Part Waves",
+    "sourcePrompt": "This look features medium-to-long hair with a center part and loose beachy waves that start around the cheekbones and continue through the ends. The finish is soft and slightly tousled, with enough definition to feel styled but not overly formal. It is flattering, wearable, and ideal for an effortless textured look.",
+    "finalPrompt": "You are a precision image compositor executing a photorealistic hair swap. Use image 1 as the destination scene and subject. Use image 2 as the absolute structural and stylistic reference for the hair. Preserve 100% of the identity, facial features, expression, eyes, skin texture, and clothing of the person from image 1. Keep the original background and all environmental elements in image 1 identical and untouched. Replace the subject's entire existing hair volume with a new hairstyle. The new style must match the specific structure, length, volume, and texture found in image 2. The hairline transition from the forehead and temples to the new hair must be anatomically correct and flawlessly blended. There must be absolutely no floating hair effect. The new strands must appear to grow naturally from the scalp. Re-orient the reference hairstyle from image 2 so it matches the exact head angle, tilt, and perspective of the subject in image 1. Apply the ambient light temperature, intensity, and directionality from image 1 to the new hair. Do not bring the lighting environment from image 2. The new hair must cast realistic soft contact shadows onto the forehead, neck, and shoulders. Render individual sharp hair strands, especially at the edges, and avoid a smooth or plastic look. Match the focus depth of the new hair to the depth of field of the subject's face. Make it realistic and fitting well important! Keep the result photorealistic, flattering, and salon quality.",
+    "extraPrompt": "",
+    "attemptedReferenceVariants": [
+      "blurred"
+    ]
+  },
+  "error": {
+    "name": "Error",
+    "message": "Blurred reference image not found: beachy-center-part-waves.jpg",
+    "publicMessage": "",
+    "promptBlocked": "",
+    "providerFailureSummary": "",
+    "stack": "Error: Blurred reference image not found: beachy-center-part-waves.jpg\n    at getImageReferenceDataUrl (file:///C:/Users/alkhi/BarberShopRevolution/server.js:944:15)\n    at getGenerationStyleReferenceDataUrl (file:///C:/Users/alkhi/BarberShopRevolution/server.js:972:58)\n    at file:///C:/Users/alkhi/BarberShopRevolution/server.js:2307:44\n    at Layer.handleRequest (C:\\Users\\alkhi\\BarberShopRevolution\\node_modules\\router\\lib\\layer.js:152:17)\n    at next (C:\\Users\\alkhi\\BarberShopRevolution\\node_modules\\router\\lib\\route.js:157:13)\n    at Route.dispatch (C:\\Users\\alkhi\\BarberShopRevolution\\node_modules\\router\\lib\\route.js:117:3)\n    at handle (C:\\Users\\alkhi\\BarberShopRevolution\\node_modules\\router\\index.js:435:11)\n    at Layer.handleRequest (C:\\Users\\alkhi\\BarberShopRevolution\\node_modules\\router\\lib\\layer.js:152:17)\n    at C:\\Users\\alkhi\\BarberShopRevolution\\node_modules\\router\\index.js:295:15\n    at processParams (C:\\Users\\alkhi\\BarberShopRevolution\\node_modules\\router\\index.js:582:12)"
+  }
+}
+
+[2026-04-15T01:43:23.439Z] [INFO] [server] Server started.
+{
+  "port": 3013,
+  "model": "gemini-3.1-flash-image-preview",
+  "testMode": false,
+  "twoPass": false,
+  "facialFit": false,
+  "appLogFile": "C:\\Users\\alkhi\\BarberShopRevolution\\logs\\app.log",
+  "imageGeneratorLogFile": "C:\\Users\\alkhi\\BarberShopRevolution\\logs\\image-generator.log",
+  "imageGeneratorErrorLogFile": "C:\\Users\\alkhi\\BarberShopRevolution\\logs\\image-generator-errors.log",
+  "generationMetricsFile": "C:\\Users\\alkhi\\BarberShopRevolution\\logs\\generation-metrics.json"
+}
+

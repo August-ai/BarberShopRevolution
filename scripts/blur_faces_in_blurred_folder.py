@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import hashlib
 import json
+import shutil
 from pathlib import Path
 
 import cv2
@@ -13,26 +13,6 @@ STYLES_DIR = ROOT_DIR / "styles"
 BLURRED_DIR = ROOT_DIR / "blurred"
 MANIFEST_PATH = BLURRED_DIR / "manifest.json"
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
-
-
-def sha256_file(file_path: Path) -> str:
-    digest = hashlib.sha256()
-
-    with file_path.open("rb") as file_handle:
-        for chunk in iter(lambda: file_handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-
-    return digest.hexdigest()
-
-
-def load_manifest() -> list[dict[str, str]]:
-    if not MANIFEST_PATH.exists():
-        return []
-
-    try:
-        return json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
-    except Exception:
-        return []
 
 
 def detect_primary_face(image_bgr: np.ndarray) -> tuple[int, int, int, int] | None:
@@ -51,30 +31,36 @@ def detect_primary_face(image_bgr: np.ndarray) -> tuple[int, int, int, int] | No
     return max(faces, key=lambda face: face[2] * face[3])
 
 
-def build_face_mask(image_shape: tuple[int, int, int], face_box: tuple[int, int, int, int] | None) -> tuple[np.ndarray, str]:
+def build_heavy_face_mask(image_shape: tuple[int, int, int], face_box: tuple[int, int, int, int] | None) -> tuple[np.ndarray, str]:
     height, width = image_shape[:2]
     mask = np.zeros((height, width), dtype=np.uint8)
 
     if face_box is None:
         center = (width // 2, int(height * 0.38))
-        axes = (max(24, int(width * 0.12)), max(30, int(height * 0.14)))
+        axes = (
+            max(48, int(width * 0.19)),
+            max(62, int(height * 0.24))
+        )
         detection_mode = "fallback"
     else:
         x, y, w, h = face_box
-        center = (int(x + (w * 0.5)), int(y + (h * 0.56)))
-        axes = (max(18, int(w * 0.33)), max(22, int(h * 0.40)))
+        center = (int(x + (w * 0.5)), int(y + (h * 0.54)))
+        axes = (
+            max(36, int(w * 0.72)),
+            max(48, int(h * 0.92))
+        )
         detection_mode = "detected"
 
     cv2.ellipse(mask, center, axes, 0, 0, 360, 255, -1)
-    mask = cv2.GaussianBlur(mask, (31, 31), 0)
+    mask = cv2.GaussianBlur(mask, (61, 61), 0)
     return mask, detection_mode
 
 
-def lightly_blur_face_in_place(image_path: Path) -> dict[str, str]:
-    image = cv2.imread(str(image_path), cv2.IMREAD_UNCHANGED)
+def blur_face_copy(source_path: Path, output_path: Path) -> dict[str, str]:
+    image = cv2.imread(str(source_path), cv2.IMREAD_UNCHANGED)
 
     if image is None:
-        raise RuntimeError(f"Unable to read image: {image_path}")
+        raise RuntimeError(f"Unable to read image: {source_path}")
 
     alpha_channel = None
 
@@ -87,9 +73,9 @@ def lightly_blur_face_in_place(image_path: Path) -> dict[str, str]:
         image_bgr = image
 
     face_box = detect_primary_face(image_bgr)
-    mask, detection_mode = build_face_mask(image_bgr.shape, face_box)
+    mask, detection_mode = build_heavy_face_mask(image_bgr.shape, face_box)
 
-    blur_kernel = max(15, int(min(image_bgr.shape[:2]) * 0.045))
+    blur_kernel = max(51, int(min(image_bgr.shape[:2]) * 0.11))
 
     if blur_kernel % 2 == 0:
         blur_kernel += 1
@@ -104,55 +90,51 @@ def lightly_blur_face_in_place(image_path: Path) -> dict[str, str]:
     else:
         output_image = output_bgr
 
-    if not cv2.imwrite(str(image_path), output_image):
-        raise RuntimeError(f"Unable to write image: {image_path}")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if not cv2.imwrite(str(output_path), output_image):
+        raise RuntimeError(f"Unable to write image: {output_path}")
 
     return {
-        "source": image_path.name,
-        "output": image_path.name,
+        "source": source_path.name,
+        "output": output_path.name,
         "detectionMode": detection_mode,
-        "processedInPlace": "true",
+        "blurStyle": "heavy-face",
+        "sourceFolder": "styles",
+        "outputFolder": "blurred"
     }
 
 
-def should_process_image(image_path: Path) -> bool:
-    original_path = STYLES_DIR / image_path.name
+def remove_stale_blurred_images(style_filenames: set[str]) -> None:
+    for blurred_path in BLURRED_DIR.iterdir():
+        if not blurred_path.is_file() or blurred_path.suffix.lower() not in IMAGE_EXTENSIONS:
+            continue
 
-    if original_path.exists():
-        return sha256_file(image_path) == sha256_file(original_path)
-
-    return True
+        if blurred_path.name not in style_filenames:
+            blurred_path.unlink(missing_ok=True)
 
 
 def main() -> None:
     BLURRED_DIR.mkdir(parents=True, exist_ok=True)
-    manifest_by_output = {
-        entry.get("output", ""): entry
-        for entry in load_manifest()
-        if isinstance(entry, dict)
-    }
+    style_image_paths = sorted(
+        [
+            image_path
+            for image_path in STYLES_DIR.iterdir()
+            if image_path.is_file() and image_path.suffix.lower() in IMAGE_EXTENSIONS
+        ],
+        key=lambda image_path: image_path.name.lower()
+    )
+    remove_stale_blurred_images({image_path.name for image_path in style_image_paths})
+    manifest_entries: list[dict[str, str]] = []
 
-    updated_entries: list[dict[str, str]] = []
+    for style_path in style_image_paths:
+        blurred_path = BLURRED_DIR / style_path.name
+        shutil.copyfile(style_path, blurred_path)
+        entry = blur_face_copy(style_path, blurred_path)
+        manifest_entries.append(entry)
+        print(f"Blurred {style_path.name} ({entry['detectionMode']}).")
 
-    for image_path in sorted(BLURRED_DIR.iterdir()):
-        if image_path.suffix.lower() not in IMAGE_EXTENSIONS or not image_path.is_file():
-            continue
-
-        if should_process_image(image_path):
-            entry = lightly_blur_face_in_place(image_path)
-            print(f"Blurred {image_path.name} ({entry['detectionMode']}).")
-            updated_entries.append(entry)
-        else:
-            existing_entry = manifest_by_output.get(image_path.name, {
-                "source": image_path.name,
-                "output": image_path.name,
-                "detectionMode": "existing",
-                "processedInPlace": "false",
-            })
-            updated_entries.append(existing_entry)
-            print(f"Skipped {image_path.name} (already different from styles source).")
-
-    MANIFEST_PATH.write_text(json.dumps(updated_entries, indent=2), encoding="utf-8")
+    MANIFEST_PATH.write_text(f"{json.dumps(manifest_entries, indent=2)}\n", encoding="utf-8")
     print(f"Wrote manifest to {MANIFEST_PATH}.")
 
 

@@ -104,8 +104,12 @@
                         <p class="generation-progress-kicker" id="generationProgressKicker">Generating</p>
                         <h3 class="generation-progress-title" id="generationProgressTitle">Generating your new hairstyle</h3>
                         <p class="generation-progress-text" id="generationProgressText">Your source image is being used to build the next results.</p>
+                        <div class="progress-meta">
+                            <span class="progress-percent" id="generationProgressPercent">0%</span>
+                            <span class="progress-caption">Estimated progress</span>
+                        </div>
                         <div class="progress-track" aria-hidden="true">
-                            <span class="progress-fill"></span>
+                            <span class="progress-fill" id="generationProgressFill"></span>
                         </div>
                     </div>
                 </section>
@@ -153,8 +157,12 @@
                                 <div class="lightbox-loading-card">
                                     <p class="lightbox-loading-title" id="lightboxLoadingTitle">Generating</p>
                                     <p class="lightbox-loading-text" id="lightboxLoadingText">This selected image is being used as the source for the next request.</p>
+                                    <div class="progress-meta progress-meta-lightbox">
+                                        <span class="progress-percent" id="lightboxLoadingPercent">0%</span>
+                                        <span class="progress-caption">Estimated progress</span>
+                                    </div>
                                     <div class="progress-track progress-track-lightbox" aria-hidden="true">
-                                        <span class="progress-fill"></span>
+                                        <span class="progress-fill" id="lightboxLoadingFill"></span>
                                     </div>
                                 </div>
                             </div>

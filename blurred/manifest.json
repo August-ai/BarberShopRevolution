@@ -3,70 +3,288 @@
     "source": "beachy-center-part-waves.jpg",
     "output": "beachy-center-part-waves.jpg",
     "detectionMode": "detected",
-    "processedInPlace": "true"
+    "blurStyle": "heavy-face",
+    "sourceFolder": "styles",
+    "outputFolder": "blurred"
+  },
+  {
+    "source": "beachy-textured-lob-with-blonde-balayage.png",
+    "output": "beachy-textured-lob-with-blonde-balayage.png",
+    "detectionMode": "detected",
+    "blurStyle": "heavy-face",
+    "sourceFolder": "styles",
+    "outputFolder": "blurred"
+  },
+  {
+    "source": "cascading-butterfly-layers-with-chestnut-balayage.jpg",
+    "output": "cascading-butterfly-layers-with-chestnut-balayage.jpg",
+    "detectionMode": "detected",
+    "blurStyle": "heavy-face",
+    "sourceFolder": "styles",
+    "outputFolder": "blurred"
   },
   {
     "source": "chin-length-glam-wavy-bob.jpg",
     "output": "chin-length-glam-wavy-bob.jpg",
     "detectionMode": "detected",
-    "processedInPlace": "true"
+    "blurStyle": "heavy-face",
+    "sourceFolder": "styles",
+    "outputFolder": "blurred"
+  },
+  {
+    "source": "choppy-wolf-cut-with-piecey-fringe.png",
+    "output": "choppy-wolf-cut-with-piecey-fringe.png",
+    "detectionMode": "detected",
+    "blurStyle": "heavy-face",
+    "sourceFolder": "styles",
+    "outputFolder": "blurred"
+  },
+  {
+    "source": "collarbone-lob-with-soft-flipped-ends.jpg",
+    "output": "collarbone-lob-with-soft-flipped-ends.jpg",
+    "detectionMode": "detected",
+    "blurStyle": "heavy-face",
+    "sourceFolder": "styles",
+    "outputFolder": "blurred"
+  },
+  {
+    "source": "curly-shag-with-short-fringe.jpg",
+    "output": "curly-shag-with-short-fringe.jpg",
+    "detectionMode": "detected",
+    "blurStyle": "heavy-face",
+    "sourceFolder": "styles",
+    "outputFolder": "blurred"
+  },
+  {
+    "source": "double-mini-buns-with-long-glam-waves.jpg",
+    "output": "double-mini-buns-with-long-glam-waves.jpg",
+    "detectionMode": "detected",
+    "blurStyle": "heavy-face",
+    "sourceFolder": "styles",
+    "outputFolder": "blurred"
+  },
+  {
+    "source": "extra-long-layered-blowout-with-face-framing-volume.jpg",
+    "output": "extra-long-layered-blowout-with-face-framing-volume.jpg",
+    "detectionMode": "detected",
+    "blurStyle": "heavy-face",
+    "sourceFolder": "styles",
+    "outputFolder": "blurred"
+  },
+  {
+    "source": "feathered-shag-with-curtain-bangs.jpg",
+    "output": "feathered-shag-with-curtain-bangs.jpg",
+    "detectionMode": "detected",
+    "blurStyle": "heavy-face",
+    "sourceFolder": "styles",
+    "outputFolder": "blurred"
   },
   {
     "source": "layered-long-bob-with-side-swept-bangs.jpg",
     "output": "layered-long-bob-with-side-swept-bangs.jpg",
     "detectionMode": "detected",
-    "processedInPlace": "true"
+    "blurStyle": "heavy-face",
+    "sourceFolder": "styles",
+    "outputFolder": "blurred"
   },
   {
     "source": "layered-midi-cut-with-bottleneck-bangs.jpg",
     "output": "layered-midi-cut-with-bottleneck-bangs.jpg",
     "detectionMode": "detected",
-    "processedInPlace": "true"
+    "blurStyle": "heavy-face",
+    "sourceFolder": "styles",
+    "outputFolder": "blurred"
+  },
+  {
+    "source": "long-butterfly-layers-with-curtain-bangs.jpg",
+    "output": "long-butterfly-layers-with-curtain-bangs.jpg",
+    "detectionMode": "detected",
+    "blurStyle": "heavy-face",
+    "sourceFolder": "styles",
+    "outputFolder": "blurred"
   },
   {
     "source": "long-face-framing-layers-with-curtain-bangs.png",
     "output": "long-face-framing-layers-with-curtain-bangs.png",
     "detectionMode": "detected",
-    "processedInPlace": "true"
+    "blurStyle": "heavy-face",
+    "sourceFolder": "styles",
+    "outputFolder": "blurred"
+  },
+  {
+    "source": "long-hollywood-waves-with-middle-part.jpg",
+    "output": "long-hollywood-waves-with-middle-part.jpg",
+    "detectionMode": "detected",
+    "blurStyle": "heavy-face",
+    "sourceFolder": "styles",
+    "outputFolder": "blurred"
+  },
+  {
+    "source": "long-sleek-cut-with-full-blunt-bangs.jpg",
+    "output": "long-sleek-cut-with-full-blunt-bangs.jpg",
+    "detectionMode": "detected",
+    "blurStyle": "heavy-face",
+    "sourceFolder": "styles",
+    "outputFolder": "blurred"
+  },
+  {
+    "source": "long-voluminous-blowout-layers.jpg",
+    "output": "long-voluminous-blowout-layers.jpg",
+    "detectionMode": "detected",
+    "blurStyle": "heavy-face",
+    "sourceFolder": "styles",
+    "outputFolder": "blurred"
+  },
+  {
+    "source": "medium-brown-long-bob-with-highlighted-face-framing-layers.jpg",
+    "output": "medium-brown-long-bob-with-highlighted-face-framing-layers.jpg",
+    "detectionMode": "detected",
+    "blurStyle": "heavy-face",
+    "sourceFolder": "styles",
+    "outputFolder": "blurred"
+  },
+  {
+    "source": "medium-soft-waves-with-curtain-bangs.jpg",
+    "output": "medium-soft-waves-with-curtain-bangs.jpg",
+    "detectionMode": "detected",
+    "blurStyle": "heavy-face",
+    "sourceFolder": "styles",
+    "outputFolder": "blurred"
+  },
+  {
+    "source": "polished-retro-glam-blowout.jpg",
+    "output": "polished-retro-glam-blowout.jpg",
+    "detectionMode": "detected",
+    "blurStyle": "heavy-face",
+    "sourceFolder": "styles",
+    "outputFolder": "blurred"
   },
   {
     "source": "polished-rounded-classic-bob.jpg",
     "output": "polished-rounded-classic-bob.jpg",
     "detectionMode": "detected",
-    "processedInPlace": "true"
+    "blurStyle": "heavy-face",
+    "sourceFolder": "styles",
+    "outputFolder": "blurred"
   },
   {
     "source": "Redhair_shoulderHair.png",
     "output": "Redhair_shoulderHair.png",
-    "detectionMode": "detected"
+    "detectionMode": "detected",
+    "blurStyle": "heavy-face",
+    "sourceFolder": "styles",
+    "outputFolder": "blurred"
+  },
+  {
+    "source": "shaggy-lob-with-curtain-bangs.jpg",
+    "output": "shaggy-lob-with-curtain-bangs.jpg",
+    "detectionMode": "detected",
+    "blurStyle": "heavy-face",
+    "sourceFolder": "styles",
+    "outputFolder": "blurred"
+  },
+  {
+    "source": "short-curly-bob-with-defined-volume.jpg",
+    "output": "short-curly-bob-with-defined-volume.jpg",
+    "detectionMode": "detected",
+    "blurStyle": "heavy-face",
+    "sourceFolder": "styles",
+    "outputFolder": "blurred"
   },
   {
     "source": "short-curly-bob-with-side-swept-fringe.jpg",
     "output": "short-curly-bob-with-side-swept-fringe.jpg",
     "detectionMode": "detected",
-    "processedInPlace": "true"
+    "blurStyle": "heavy-face",
+    "sourceFolder": "styles",
+    "outputFolder": "blurred"
   },
   {
     "source": "side-part-textured-french-bob.jpg",
     "output": "side-part-textured-french-bob.jpg",
     "detectionMode": "detected",
-    "processedInPlace": "true"
+    "blurStyle": "heavy-face",
+    "sourceFolder": "styles",
+    "outputFolder": "blurred"
+  },
+  {
+    "source": "sleek-center-part-lob.jpg",
+    "output": "sleek-center-part-lob.jpg",
+    "detectionMode": "detected",
+    "blurStyle": "heavy-face",
+    "sourceFolder": "styles",
+    "outputFolder": "blurred"
+  },
+  {
+    "source": "sleek-collarbone-lob-with-soft-beveled-ends.jpg",
+    "output": "sleek-collarbone-lob-with-soft-beveled-ends.jpg",
+    "detectionMode": "detected",
+    "blurStyle": "heavy-face",
+    "sourceFolder": "styles",
+    "outputFolder": "blurred"
   },
   {
     "source": "sleek-top-knot-with-face-framing-tendrils.png",
     "output": "sleek-top-knot-with-face-framing-tendrils.png",
     "detectionMode": "detected",
-    "processedInPlace": "true"
+    "blurStyle": "heavy-face",
+    "sourceFolder": "styles",
+    "outputFolder": "blurred"
+  },
+  {
+    "source": "straight-textured-cut-with-curtain-fringe.jpg",
+    "output": "straight-textured-cut-with-curtain-fringe.jpg",
+    "detectionMode": "detected",
+    "blurStyle": "heavy-face",
+    "sourceFolder": "styles",
+    "outputFolder": "blurred"
+  },
+  {
+    "source": "textured-lob-with-bold-money-piece-highlights.webp",
+    "output": "textured-lob-with-bold-money-piece-highlights.webp",
+    "detectionMode": "detected",
+    "blurStyle": "heavy-face",
+    "sourceFolder": "styles",
+    "outputFolder": "blurred"
+  },
+  {
+    "source": "textured-short-bob-with-face-framing-bangs.jpg",
+    "output": "textured-short-bob-with-face-framing-bangs.jpg",
+    "detectionMode": "detected",
+    "blurStyle": "heavy-face",
+    "sourceFolder": "styles",
+    "outputFolder": "blurred"
+  },
+  {
+    "source": "textured-wavy-lob-with-money-piece-highlights.jpg",
+    "output": "textured-wavy-lob-with-money-piece-highlights.jpg",
+    "detectionMode": "detected",
+    "blurStyle": "heavy-face",
+    "sourceFolder": "styles",
+    "outputFolder": "blurred"
+  },
+  {
+    "source": "tousled-shag-with-brow-skimming-bangs.jpg",
+    "output": "tousled-shag-with-brow-skimming-bangs.jpg",
+    "detectionMode": "detected",
+    "blurStyle": "heavy-face",
+    "sourceFolder": "styles",
+    "outputFolder": "blurred"
   },
   {
     "source": "tousled-side-part-bob.jpg",
     "output": "tousled-side-part-bob.jpg",
     "detectionMode": "detected",
-    "processedInPlace": "true"
+    "blurStyle": "heavy-face",
+    "sourceFolder": "styles",
+    "outputFolder": "blurred"
   },
   {
     "source": "voluminous-70s-layered-blowout.jpg",
     "output": "voluminous-70s-layered-blowout.jpg",
-    "detectionMode": "detected"
+    "detectionMode": "detected",
+    "blurStyle": "heavy-face",
+    "sourceFolder": "styles",
+    "outputFolder": "blurred"
   }
 ]

@@ -27,6 +27,7 @@ const zoomedFolder = path.join(__dirname, "zoomed");
 const appLogFile = path.join(logsFolder, "app.log");
 const imageGeneratorLogFile = path.join(logsFolder, "image-generator.log");
 const imageGeneratorErrorLogFile = path.join(logsFolder, "image-generator-errors.log");
+const generationMetricsFile = path.join(logsFolder, "generation-metrics.json");
 const stylesMetadataFile = path.join(stylesFolder, "hairstyles.json");
 const stylesDescriptionFile = path.join(stylesFolder, "hairstyles.txt");
 const faceGeometryManifestFile = path.join(faceGeometryFolder, "manifest.json");
@@ -212,6 +213,99 @@ const writeImageGeneratorErrorLog = ({
     });
 };
 
+const getDefaultGenerationMetrics = () => ({
+    updatedAt: "",
+    totalCompleted: 0,
+    totalDurationMs: 0,
+    averageDurationMs: 0,
+    minDurationMs: 0,
+    maxDurationMs: 0,
+    recent: []
+});
+
+const writeGenerationMetrics = (payload) => {
+    const tempPath = `${generationMetricsFile}.tmp`;
+    fs.writeFileSync(tempPath, `${JSON.stringify(payload, null, 2)}\n`, "utf-8");
+    fs.renameSync(tempPath, generationMetricsFile);
+};
+
+const readGenerationMetrics = () => {
+    if (!fs.existsSync(generationMetricsFile)) {
+        return getDefaultGenerationMetrics();
+    }
+
+    try {
+        const raw = fs.readFileSync(generationMetricsFile, "utf-8");
+        const parsed = JSON.parse(raw);
+
+        return {
+            ...getDefaultGenerationMetrics(),
+            ...(parsed && typeof parsed === "object" ? parsed : {}),
+            recent: Array.isArray(parsed?.recent) ? parsed.recent : []
+        };
+    } catch (_error) {
+        return getDefaultGenerationMetrics();
+    }
+};
+
+const ensureGenerationMetricsFile = () => {
+    if (!fs.existsSync(generationMetricsFile)) {
+        writeGenerationMetrics(getDefaultGenerationMetrics());
+    }
+};
+
+const recordGenerationTiming = ({
+    requestLabel = "",
+    savePrefix = "",
+    durationMs = 0,
+    attemptNumber = 1,
+    referenceImageCount = 0,
+    savedFile = ""
+}) => {
+    const normalizedDurationMs = Math.max(0, Math.round(Number(durationMs) || 0));
+
+    if (!normalizedDurationMs) {
+        return;
+    }
+
+    const metrics = readGenerationMetrics();
+    const totalCompleted = Math.max(0, Number(metrics.totalCompleted || 0)) + 1;
+    const totalDurationMs = Math.max(0, Number(metrics.totalDurationMs || 0)) + normalizedDurationMs;
+    const timestamp = new Date().toISOString();
+    const minDurationMs = totalCompleted === 1 ?
+        normalizedDurationMs :
+        Math.min(
+            normalizedDurationMs,
+            Math.max(0, Number(metrics.minDurationMs || normalizedDurationMs))
+        );
+    const maxDurationMs = Math.max(
+        normalizedDurationMs,
+        Math.max(0, Number(metrics.maxDurationMs || 0))
+    );
+    const recentEntry = {
+        timestamp,
+        requestLabel: String(requestLabel || ""),
+        savePrefix: String(savePrefix || ""),
+        durationMs: normalizedDurationMs,
+        attemptNumber: Math.max(1, Number(attemptNumber || 1)),
+        referenceImageCount: Math.max(0, Number(referenceImageCount || 0)),
+        savedFile: String(savedFile || "")
+    };
+
+    writeGenerationMetrics({
+        ...metrics,
+        updatedAt: timestamp,
+        totalCompleted,
+        totalDurationMs,
+        averageDurationMs: Number((totalDurationMs / totalCompleted).toFixed(2)),
+        minDurationMs,
+        maxDurationMs,
+        recent: [recentEntry]
+            .concat(Array.isArray(metrics.recent) ? metrics.recent : [])
+            .slice(0, 200)
+    });
+};
+
 const serializeErrorForLog = (error) => ({
     name: String(error?.name || "Error"),
     message: String(error?.message || ""),
@@ -267,6 +361,8 @@ const getErrorDetails = (error) => {
 const delay = (milliseconds) => new Promise((resolve) => {
     setTimeout(resolve, milliseconds);
 });
+
+ensureGenerationMetricsFile();
 
 const getProviderErrorStatusCode = (error) => {
     const directStatusCode = Number(error?.statusCode || error?.code || error?.status || 0);
@@ -531,8 +627,7 @@ const logImageGenerationResponse = ({
         level: payload.receivedImage ? "INFO" : "ERROR",
         category: payload.receivedImage ? "image-generator-response" : "image-generator-response-error",
         message: payload.receivedImage ?
-            `Received image response from Image Generator on attempt ${attemptNumber} of ${maxAttempts}.` :
-            `Image Generator returned no image on attempt ${attemptNumber} of ${maxAttempts}.`,
+            `Received image response from Image Generator on attempt ${attemptNumber} of ${maxAttempts}.` : `Image Generator returned no image on attempt ${attemptNumber} of ${maxAttempts}.`,
         data: payload
     });
 };
@@ -678,8 +773,7 @@ const loadStyleMetadata = () => {
                 description: String(item?.description || "").trim(),
                 attributes: normalizeStyleAttributes(item?.attributes),
                 aliases: Array.isArray(item?.aliases) ?
-                    item.aliases.map((alias) => String(alias || "").trim()).filter(Boolean) :
-                    []
+                    item.aliases.map((alias) => String(alias || "").trim()).filter(Boolean) : []
             };
 
             metadata.set(normalizedFilename, value);
@@ -863,7 +957,29 @@ const getBlurredStyleReferenceDataUrl = (filename) => {
     const filePath = path.join(blurredFolder, filename);
 
     if (!fs.existsSync(filePath)) {
-        return "";
+        const requestedBaseName = path.parse(String(filename || "")).name.toLowerCase();
+
+        if (!requestedBaseName || !fs.existsSync(blurredFolder)) {
+            return "";
+        }
+
+        const fallbackMatch = fs.readdirSync(blurredFolder).find((entry) => {
+            if (!isImageFile(entry)) {
+                return false;
+            }
+
+            return path.parse(entry).name.toLowerCase() === requestedBaseName;
+        });
+
+        if (!fallbackMatch) {
+            return "";
+        }
+
+        return getImageReferenceDataUrl(
+            blurredFolder,
+            fallbackMatch,
+            `Blurred reference image not found: ${filename}`
+        );
     }
 
     return getImageReferenceDataUrl(
@@ -909,7 +1025,7 @@ const buildPrecisionHairSwapPrompt = ({ specificHairDescription = "" }) => {
         "The hairline transition from the forehead and temples to the new hair must be anatomically correct and flawlessly blended.",
         "There must be absolutely no floating hair effect.",
         "The new strands must appear to grow naturally from the scalp.",
-        "Re-orient the reference hairstyle from image 2 so it matches the exact head angle, tilt, and perspective of the subject in image 1.",
+        "Re-orient the reference hairstyle from image 2, not image 1, so it matches the exact head angle, tilt, and perspective of the subject in image 1.",
         "Apply the ambient light temperature, intensity, and directionality from image 1 to the new hair.",
         "Do not bring the lighting environment from image 2.",
         "The new hair must cast realistic soft contact shadows onto the forehead, neck, and shoulders.",
@@ -967,13 +1083,12 @@ const buildPromptVariationPrompt = ({
     }
 
     return [
-        "Edit image 1 only.",
-        !hasHairColorReference
-            ? "Keep the same person and background in image 1. Only refine the hair realistically so it fits well."
-            : "",
-        hasHairColorReference && hairColorReferenceKind !== "portrait"
-            ? "Match only the hair color in image 1 to image 2 and keep everything else in image 1 the same."
-            : "",
+        "Edit image 1 only.", !hasHairColorReference ?
+        "Keep the same person and background in image 1. Only refine the hair realistically so it fits well." :
+        "",
+        hasHairColorReference && hairColorReferenceKind !== "portrait" ?
+        "Match only the hair color in image 1 to image 2 and keep everything else in image 1 the same." :
+        "",
         naturalLightingInstruction,
         hairColorLabel ? `Requested hair color name: ${hairColorLabel}.` : "",
         hairColorHex ? `Requested hair color value: ${hairColorHex}.` : "",
@@ -1550,8 +1665,7 @@ const runFacialFit = async({
 
         const { stdout, stderr } = await execFileAsync(
             pythonCommand,
-            facialFitArgs,
-            {
+            facialFitArgs, {
                 cwd: __dirname,
                 maxBuffer: 50 * 1024 * 1024,
                 timeout: 120000
@@ -1628,15 +1742,13 @@ const runHairSegmentation = async({ imageBase64 }) => {
         saveDataUrlToFile(imageBase64, inputPath);
 
         const { stdout, stderr } = await execFileAsync(
-            pythonCommand,
-            [
+            pythonCommand, [
                 hairSegmenterScriptPath,
                 inputPath,
                 outputPath,
                 "--model",
                 hairSegmenterModelPath
-            ],
-            {
+            ], {
                 cwd: __dirname,
                 maxBuffer: 50 * 1024 * 1024,
                 timeout: 120000
@@ -1707,6 +1819,7 @@ const generateImageVariation = async({
     thinkingLevel = "",
     useTwoPassRefinement = false
 }) => {
+    const requestStartedAt = Date.now();
     const normalizedReferenceImages = [...referenceImageDataUrls];
 
     if (referenceImageDataUrl) {
@@ -1865,6 +1978,7 @@ const generateImageVariation = async({
             }
 
             const savedFile = writeGeneratedImage(imagePart.data, imagePart.mimeType, savePrefix);
+            const completedDurationMs = Date.now() - requestStartedAt;
             logImageGenerationResponse({
                 savePrefix,
                 response,
@@ -1872,6 +1986,27 @@ const generateImageVariation = async({
                 failureSummary: "",
                 attemptNumber,
                 maxAttempts: IMAGE_GENERATION_MAX_ATTEMPTS
+            });
+            recordGenerationTiming({
+                requestLabel: savePrefix || "",
+                savePrefix,
+                durationMs: completedDurationMs,
+                attemptNumber,
+                referenceImageCount: normalizedReferenceImages.filter(Boolean).length,
+                savedFile
+            });
+            writeImageGeneratorLog({
+                level: "INFO",
+                category: "generation-duration",
+                message: "Recorded completed image generation timing.",
+                data: {
+                    requestLabel: savePrefix || "",
+                    durationMs: completedDurationMs,
+                    attemptNumber,
+                    referenceImageCount: normalizedReferenceImages.filter(Boolean).length,
+                    savedFile,
+                    metricsFile: generationMetricsFile
+                }
             });
 
             const firstPassResult = {
@@ -2192,9 +2327,9 @@ app.post("/api/template-hairstyles", async(req, res) => {
                     result = await runTemplateAttempt(getStyleReferenceDataUrl(resolvedTemplate.filename));
                 } catch (error) {
                     if (!shouldRetryWithBlurredStyleReference({
-                        error,
-                        filename: resolvedTemplate.filename
-                    })) {
+                            error,
+                            filename: resolvedTemplate.filename
+                        })) {
                         throw error;
                     }
 
@@ -2297,7 +2432,6 @@ app.post("/api/generated-hairstyle-views", async(req, res) => {
                     imageBase64,
                     prompt: finalPrompt,
                     savePrefix: `${normalizeStyleKey(lookName)}-${view.id}`,
-                    thinkingLevel: "LOW",
                     useTwoPassRefinement: false
                 });
 
@@ -2459,10 +2593,10 @@ app.post("/api/generated-hairstyle-variation", async(req, res) => {
                 );
             } else {
                 if (!shouldRetryHairColorWithSwatchFallback({
-                    error,
-                    referenceKind: normalizedHairColorReferenceKind,
-                    swatchDataUrl: normalizedHairColorSwatchBase64
-                })) {
+                        error,
+                        referenceKind: normalizedHairColorReferenceKind,
+                        swatchDataUrl: normalizedHairColorSwatchBase64
+                    })) {
                     throw error;
                 }
 
@@ -2572,7 +2706,8 @@ app.listen(PORT, () => {
             facialFit: FACIAL_FIT,
             appLogFile,
             imageGeneratorLogFile,
-            imageGeneratorErrorLogFile
+            imageGeneratorErrorLogFile,
+            generationMetricsFile
         }
     });
 
