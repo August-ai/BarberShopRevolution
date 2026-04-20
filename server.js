@@ -382,6 +382,28 @@ const getProviderErrorStatusCode = (error) => {
     return statusMatch ? Number(statusMatch[1]) : 0;
 };
 
+const safetyBlockIndicators = [
+    "promptblocked",
+    "finishreason=safety",
+    "finishreason=prohibited_content",
+    "finishreason=blocklist",
+    "finishreason=recitation",
+    "safetysetting",
+    "safety filter",
+    "safetyfilters",
+    "blocked for safety",
+    "blocked due to safety",
+    "blocked because of safety",
+    "content policy",
+    "policy violation",
+    "prohibited content"
+];
+
+const hasSafetyBlockSignal = (...values) => values
+    .filter(Boolean)
+    .map((value) => String(value).toLowerCase())
+    .some((value) => safetyBlockIndicators.some((indicator) => value.includes(indicator)));
+
 const shouldRetryImageGenerationRequest = (error) => {
     const promptBlocked = String(error?.promptBlocked || "").trim().toLowerCase();
     const providerFailureSummary = String(error?.providerFailureSummary || "").trim().toLowerCase();
@@ -389,14 +411,7 @@ const shouldRetryImageGenerationRequest = (error) => {
     const statusCode = getProviderErrorStatusCode(error);
     const combinedText = [promptBlocked, providerFailureSummary, errorText].join(" ");
 
-    if (
-        combinedText.includes("promptblocked") ||
-        combinedText.includes("blocked") ||
-        combinedText.includes("finishreason=safety") ||
-        combinedText.includes("finishreason=prohibited_content") ||
-        combinedText.includes("finishreason=blocklist") ||
-        combinedText.includes("safety")
-    ) {
+    if (hasSafetyBlockSignal(combinedText)) {
         return false;
     }
 
@@ -1225,14 +1240,7 @@ const getImageServiceErrorResponse = (error, fallbackMessage = "Something went w
         };
     }
 
-    if (
-        combinedMessage.includes("promptblocked") ||
-        combinedMessage.includes("blocked") ||
-        combinedMessage.includes("finishreason=safety") ||
-        combinedMessage.includes("finishreason=prohibited_content") ||
-        combinedMessage.includes("finishreason=blocklist") ||
-        combinedMessage.includes("safety")
-    ) {
+    if (hasSafetyBlockSignal(combinedMessage)) {
         return {
             statusCode: 422,
             message: "The image service blocked this request. Try a different photo, reference image, or prompt.",
@@ -1449,14 +1457,7 @@ const getPublicErrorResponse = (error, fallbackMessage = "Something went wrong. 
         };
     }
 
-    if (
-        message.includes("promptblocked") ||
-        message.includes("blocked") ||
-        message.includes("finishreason=safety") ||
-        message.includes("finishreason=prohibited_content") ||
-        message.includes("finishreason=blocklist") ||
-        message.includes("safety")
-    ) {
+    if (hasSafetyBlockSignal(message)) {
         return {
             statusCode: 422,
             message: "We couldn't create that image from the current request. Try a different photo or prompt.",
@@ -1547,7 +1548,7 @@ const shouldRetryHairColorWithSwatchFallback = ({
         promptBlocked,
         providerFailureSummary,
         errorText
-    ].some((value) => value.includes("promptblocked") || value.includes("blocked") || value.includes("did not return an image"));
+    ].some((value) => hasSafetyBlockSignal(value) || value.includes("did not return an image"));
 };
 
 const shouldRetryWithBlurredStyleReference = ({ error, filename }) => {
@@ -1563,7 +1564,7 @@ const shouldRetryWithBlurredStyleReference = ({ error, filename }) => {
         promptBlocked,
         providerFailureSummary,
         errorText
-    ].some((value) => value.includes("promptblocked") || value.includes("blocked") || value.includes("did not return an image"));
+    ].some((value) => hasSafetyBlockSignal(value) || value.includes("did not return an image"));
 };
 
 const writeGeneratedImage = (base64Data, mimeType, prefix) => {
