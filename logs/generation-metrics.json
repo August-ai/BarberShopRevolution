@@ -1,11 +1,47 @@
 {
-  "updatedAt": "2026-04-15T01:48:13.121Z",
-  "totalCompleted": 11,
-  "totalDurationMs": 215088,
-  "averageDurationMs": 19553.45,
+  "updatedAt": "2026-04-23T03:56:49.645Z",
+  "totalCompleted": 15,
+  "totalDurationMs": 334152,
+  "averageDurationMs": 22276.8,
   "minDurationMs": 10177,
-  "maxDurationMs": 36537,
+  "maxDurationMs": 43091,
   "recent": [
+    {
+      "timestamp": "2026-04-23T03:56:49.645Z",
+      "requestLabel": "curly-shag-with-short-fringe",
+      "savePrefix": "curly-shag-with-short-fringe",
+      "durationMs": 43091,
+      "attemptNumber": 1,
+      "referenceImageCount": 1,
+      "savedFile": "curly-shag-with-short-fringe_1776916609632_t84yca.jpg"
+    },
+    {
+      "timestamp": "2026-04-23T03:56:06.517Z",
+      "requestLabel": "cascading-butterfly-layers-with-chestnut-balayage",
+      "savePrefix": "cascading-butterfly-layers-with-chestnut-balayage",
+      "durationMs": 29461,
+      "attemptNumber": 1,
+      "referenceImageCount": 1,
+      "savedFile": "cascading-butterfly-layers-with-chestnut-balayage_1776916566503_0ipaoc.jpg"
+    },
+    {
+      "timestamp": "2026-04-23T03:47:57.042Z",
+      "requestLabel": "curly-shag-with-short-fringe",
+      "savePrefix": "curly-shag-with-short-fringe",
+      "durationMs": 22563,
+      "attemptNumber": 1,
+      "referenceImageCount": 1,
+      "savedFile": "curly-shag-with-short-fringe_1776916077032_u0yfwl.jpg"
+    },
+    {
+      "timestamp": "2026-04-23T03:46:44.083Z",
+      "requestLabel": "cascading-butterfly-layers-with-chestnut-balayage",
+      "savePrefix": "cascading-butterfly-layers-with-chestnut-balayage",
+      "durationMs": 23949,
+      "attemptNumber": 1,
+      "referenceImageCount": 1,
+      "savedFile": "cascading-butterfly-layers-with-chestnut-balayage_1776916003989_apje8w.jpg"
+    },
     {
       "timestamp": "2026-04-15T01:48:13.121Z",
       "requestLabel": "right back view-variation",

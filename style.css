@@ -681,6 +681,7 @@ body.capture-page {
 .progress-fill {
   position: absolute;
   top: 0;
+  left: 0;
   bottom: 0;
   width: var(--progress-percent, 0%);
   border-radius: inherit;

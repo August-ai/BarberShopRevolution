@@ -1,0 +1,597 @@
+[
+  {
+    "filename": "medium-brown-long-bob-with-highlighted-face-framing-layers.jpg",
+    "name": "Medium Brown Long Bob With Highlighted Face-Framing Layers",
+    "description": "This hairstyle is a polished long bob that sits around the collarbone with a softly blunt perimeter and subtle internal layering. The cut is styled smooth with a gentle bend through the ends and brighter face-framing highlights that lift the medium brown base. It reads refined, glossy, and easy to wear while still feeling dimensional and salon finished.",
+    "aliases": [
+      "1-medium-brown-long-bob-with-highlighted-framing-layers.jpg"
+    ],
+    "attributes": {
+      "length": "collarbone",
+      "family": "lob",
+      "texture": "sleek-straight",
+      "fringe": "none",
+      "parting": "center",
+      "color": "highlighted-brunette",
+      "style": "lob"
+    }
+  },
+  {
+    "filename": "long-butterfly-layers-with-curtain-bangs.jpg",
+    "name": "Long Butterfly Layers With Curtain Bangs",
+    "description": "This reference shows long butterfly layers with a center part and sweeping curtain bangs that blend seamlessly into the front sections. The layers are concentrated from the cheekbones downward to create bounce, fullness, and a soft winged shape around the face. The finish is smooth and airy with a polished salon blowout feel.",
+    "aliases": [
+      "1011057247.jpg"
+    ],
+    "attributes": {
+      "length": "long",
+      "family": "butterfly-layers",
+      "texture": "voluminous-blowout",
+      "fringe": "curtain-bangs",
+      "parting": "center",
+      "color": "blonde",
+      "style": "layered-cut"
+    }
+  },
+  {
+    "filename": "tousled-shag-with-brow-skimming-bangs.jpg",
+    "name": "Tousled Shag With Brow-Skimming Bangs",
+    "description": "This cut is a medium-to-long shag with lots of broken-up layering, movement through the mid-lengths, and a softly piecey texture. The bangs sit around eyebrow level and melt into the shorter face-framing layers, which gives the shape a relaxed rock-and-roll finish. It feels effortless, airy, and intentionally undone rather than sleek.",
+    "aliases": [
+      "11-layered-hairstyle-with-bangs-for-women-Ctw7bpTvdvu.jpg"
+    ],
+    "attributes": {
+      "length": "shoulder",
+      "family": "shag",
+      "texture": "tousled-wave",
+      "fringe": "full-bangs",
+      "parting": "center",
+      "color": "brunette",
+      "style": "shag"
+    }
+  },
+  {
+    "filename": "straight-textured-cut-with-curtain-fringe.jpg",
+    "name": "Straight Textured Cut With Curtain Fringe",
+    "description": "This hairstyle is a long straight cut with feathered layering through the front and a softly separated curtain fringe. The overall shape stays lean and elongated, but the ends and fringe are lightly textured so the style never looks heavy. It pairs sleek smoothness with subtle movement around the face for a modern salon look.",
+    "aliases": [
+      "2-straight-textured-haircut-CuUZRLgL2AZ.jpg"
+    ],
+    "attributes": {
+      "length": "long",
+      "family": "layered-cut",
+      "texture": "sleek-straight",
+      "fringe": "curtain-bangs",
+      "parting": "center",
+      "color": "black",
+      "style": "layered-cut"
+    }
+  },
+  {
+    "filename": "chin-length-glam-wavy-bob.jpg",
+    "name": "Chin-Length Glam Wavy Bob",
+    "description": "This reference features a chin-length bob with a side part and sculpted waves that add fullness through the cheeks and jawline. The perimeter is rounded and tucked under slightly, which gives the style a glamorous red-carpet finish without looking stiff. It is short, elegant, and ideal when you want bounce and shine in a compact shape.",
+    "aliases": [
+      "2264289035.jpg"
+    ],
+    "attributes": {
+      "length": "chin",
+      "family": "bob",
+      "texture": "glam-wave",
+      "fringe": "none",
+      "parting": "side",
+      "color": "brunette",
+      "style": "bob"
+    }
+  },
+  {
+    "filename": "collarbone-lob-with-soft-flipped-ends.jpg",
+    "name": "Collarbone Lob With Soft Flipped Ends",
+    "description": "This haircut is a collarbone-grazing lob with a center part, smooth lengths, and subtle outward flip at the ends. The silhouette is clean and balanced, with minimal layering that keeps the cut full while still creating light movement near the perimeter. It feels polished, modern, and flattering from every angle.",
+    "aliases": [
+      "2267303339.jpg"
+    ],
+    "attributes": {
+      "length": "collarbone",
+      "family": "lob",
+      "texture": "soft-wave",
+      "fringe": "none",
+      "parting": "center",
+      "color": "brunette",
+      "style": "lob"
+    }
+  },
+  {
+    "filename": "tousled-side-part-bob.jpg",
+    "name": "Tousled Side-Part Bob",
+    "description": "This hairstyle is a softly textured bob that sits between chin and jaw length with a deep side part and effortless wave. The ends are lightly shattered instead of blunt, which gives the shape a breezy, lived-in finish. It has enough volume to feel glamorous, but the overall effect is casual and wearable.",
+    "aliases": [
+      "60b9937ca5137c7df38a60df8ce806c0.jpg"
+    ],
+    "attributes": {
+      "length": "jaw",
+      "family": "bob",
+      "texture": "tousled-wave",
+      "fringe": "none",
+      "parting": "deep-side",
+      "color": "blonde",
+      "style": "bob"
+    }
+  },
+  {
+    "filename": "shaggy-lob-with-curtain-bangs.jpg",
+    "name": "Shaggy Lob With Curtain Bangs",
+    "description": "This cut is a shoulder-skimming shaggy lob with loose texture and airy curtain bangs opening from the center. The layering keeps the shape light and swishy through the mid-lengths while still preserving enough density for fullness at the ends. It is soft, youthful, and styled to look slightly tousled rather than overly polished.",
+    "aliases": [
+      "9-shaggy-layers-with-bangs-CqJQc7YPAwF.jpg"
+    ],
+    "attributes": {
+      "length": "shoulder",
+      "family": "lob",
+      "texture": "tousled-wave",
+      "fringe": "curtain-bangs",
+      "parting": "center",
+      "color": "blonde",
+      "style": "lob"
+    }
+  },
+  {
+    "filename": "long-sleek-cut-with-full-blunt-bangs.jpg",
+    "name": "Long Sleek Cut With Full Blunt Bangs",
+    "description": "This hairstyle is a long, smooth cut with strong full bangs that sit just above the eyes and create a clean horizontal line across the forehead. The body of the hair falls sleek and straight with only soft beveling through the lower lengths. It looks glossy, dense, and very controlled, with the fringe as the main statement.",
+    "aliases": [
+      "bangs_hair.jpg"
+    ],
+    "attributes": {
+      "length": "long",
+      "family": "long-cut",
+      "texture": "sleek-straight",
+      "fringe": "full-bangs",
+      "parting": "no-visible-part",
+      "color": "brunette",
+      "style": "long-cut"
+    }
+  },
+  {
+    "filename": "long-voluminous-blowout-layers.jpg",
+    "name": "Long Voluminous Blowout Layers",
+    "description": "This reference shows long layered hair finished in a plush blowout with lifted roots, rounded movement, and glossy body throughout the lengths. The layers begin around the face and cascade downward to create fullness without sacrificing length. It feels luxurious, soft, and unmistakably salon styled.",
+    "aliases": [
+      "blowout_hair.jpg"
+    ],
+    "attributes": {
+      "length": "long",
+      "family": "layered-cut",
+      "texture": "voluminous-blowout",
+      "fringe": "none",
+      "parting": "center",
+      "color": "brunette",
+      "style": "layered-cut"
+    }
+  },
+  {
+    "filename": "cascading-butterfly-layers-with-chestnut-balayage.jpg",
+    "name": "Cascading Butterfly Layers With Chestnut Balayage",
+    "description": "This hairstyle is made of long cascading butterfly layers with lots of face-framing lift and sweeping blowout volume. The color is a warm chestnut brunette with lighter caramelized ends that emphasize the movement of the layers. The overall effect is plush, dimensional, and very polished.",
+    "aliases": [
+      "cascading-butterfly-layers-with-chestnut-ends.jpg"
+    ],
+    "attributes": {
+      "length": "long",
+      "family": "butterfly-layers",
+      "texture": "voluminous-blowout",
+      "fringe": "none",
+      "parting": "center",
+      "color": "brunette",
+      "style": "layered-cut"
+    }
+  },
+  {
+    "filename": "side-part-textured-french-bob.jpg",
+    "name": "Side-Part Textured French Bob",
+    "description": "This short cut is a softly textured French-inspired bob with a deep side part and undone bend through the lengths. The shape sits around the jawline and has a subtle airy lift rather than a hard geometric line. It feels chic, a little playful, and easy to style with a touch of movement.",
+    "aliases": [
+      "cdn.cliqueinc.com__cache__posts__187507__7-easy-hairstyles-that-make-your-face-look-slimmer-1702344-1458354225.700x0c-992b1ab5398644cca7981f6621abf1c0.jpg"
+    ],
+    "attributes": {
+      "length": "jaw",
+      "family": "french-bob",
+      "texture": "soft-texture",
+      "fringe": "none",
+      "parting": "deep-side",
+      "color": "blonde",
+      "style": "bob"
+    }
+  },
+  {
+    "filename": "sleek-top-knot-with-face-framing-tendrils.png",
+    "name": "Sleek Top Knot With Face-Framing Tendrils",
+    "description": "This style is a sleek high top knot with the hair smoothed tightly upward and wrapped into a polished bun. Long front tendrils are left out and styled to contour the face, which adds softness and keeps the updo from feeling severe. It is clean, sculpted, and ideal when you want a dramatic lifted silhouette.",
+    "aliases": [
+      "custom_1761518997636.png"
+    ],
+    "attributes": {
+      "length": "updo",
+      "family": "updo",
+      "texture": "sleek-updo",
+      "fringe": "face-framing",
+      "parting": "slicked-back",
+      "color": "brunette",
+      "style": "updo"
+    }
+  },
+  {
+    "filename": "sleek-collarbone-lob-with-soft-beveled-ends.jpg",
+    "name": "Sleek Collarbone Lob With Soft Beveled Ends",
+    "description": "This haircut is a sleek collarbone-length lob with a near one-length baseline and very subtle inward beveling at the ends. The center part and smooth finish keep the look minimal and glossy, while the beveled edge stops it from appearing flat. It is clean, modern, and quietly luxurious.",
+    "aliases": [
+      "d77966da5b1019927bd185335bd89ae4_0_0-8197349aebb7460d9a386ffd6ccff31e.jpg"
+    ],
+    "attributes": {
+      "length": "collarbone",
+      "family": "lob",
+      "texture": "sleek-straight",
+      "fringe": "none",
+      "parting": "center",
+      "color": "red",
+      "style": "lob"
+    }
+  },
+  {
+    "filename": "extra-long-layered-blowout-with-face-framing-volume.jpg",
+    "name": "Extra Long Layered Blowout With Face-Framing Volume",
+    "description": "This hairstyle features extra-long hair with expansive layered volume through the crown, front, and mid-lengths. The face-framing sections are heavily blown out to create height and a dramatic curtain effect while the lower lengths stay smooth and flowing. It reads glamorous, full-bodied, and editorial without losing softness.",
+    "aliases": [
+      "f3807232c5e12d5698e4c65e191eef69.jpg"
+    ],
+    "attributes": {
+      "length": "extra-long",
+      "family": "layered-cut",
+      "texture": "voluminous-blowout",
+      "fringe": "none",
+      "parting": "center",
+      "color": "brunette",
+      "style": "layered-cut"
+    }
+  },
+  {
+    "filename": "feathered-shag-with-curtain-bangs.jpg",
+    "name": "Feathered Shag With Curtain Bangs",
+    "description": "This cut is a feathered shag with lots of layered lift around the crown, cheeks, and shoulders. The curtain bangs open around the center and flow directly into fluffy feathered lengths, which creates a classic 70s-inspired halo of movement. It feels airy, soft, and deliberately voluminous.",
+    "aliases": [
+      "feather_hair.jpg"
+    ],
+    "attributes": {
+      "length": "shoulder",
+      "family": "shag",
+      "texture": "feathered-blowout",
+      "fringe": "curtain-bangs",
+      "parting": "center",
+      "color": "blonde",
+      "style": "shag"
+    }
+  },
+  {
+    "filename": "polished-rounded-classic-bob.jpg",
+    "name": "Polished Rounded Classic Bob",
+    "description": "This hairstyle is a rounded chin-length bob with a smooth side part and a softly tucked-under finish. The perimeter stays clean and dense, while the styling adds bend and controlled fullness through the sides. It feels timeless, polished, and elegant rather than edgy.",
+    "aliases": [
+      "gettyimages-2074993138-65eeae7ccff4e.jpg"
+    ],
+    "attributes": {
+      "length": "chin",
+      "family": "bob",
+      "texture": "sleek-straight",
+      "fringe": "none",
+      "parting": "side",
+      "color": "blonde",
+      "style": "bob"
+    }
+  },
+  {
+    "filename": "beachy-textured-lob-with-blonde-balayage.png",
+    "name": "Beachy Textured Lob With Blonde Balayage",
+    "description": "This reference shows a lob that falls just below the shoulders with tousled beachy texture and a softly broken wave pattern. The color blends darker roots into brighter blonde balayage and ribbon highlights, which helps emphasize the movement in the cut. It feels relaxed, dimensional, and very current.",
+    "aliases": [
+      "hairstyle1.png"
+    ],
+    "attributes": {
+      "length": "collarbone",
+      "family": "lob",
+      "texture": "beach-wave",
+      "fringe": "none",
+      "parting": "center",
+      "color": "highlighted-blonde",
+      "style": "lob"
+    }
+  },
+  {
+    "filename": "double-mini-buns-with-long-glam-waves.jpg",
+    "name": "Double Mini Buns With Long Glam Waves",
+    "description": "This style combines two high mini buns at the crown with long, glossy, waist-length waves left down through the back and sides. The front is kept neat and lifted, while the lengths are styled with pronounced bend and shine for a playful but polished finish. It is youthful, statement-making, and more styling focused than cut focused.",
+    "aliases": [
+      "hairstyle10.jpg"
+    ],
+    "attributes": {
+      "length": "updo",
+      "family": "updo",
+      "texture": "glam-wave",
+      "fringe": "none",
+      "parting": "center",
+      "color": "black",
+      "style": "updo"
+    }
+  },
+  {
+    "filename": "medium-soft-waves-with-curtain-bangs.jpg",
+    "name": "Medium Soft Waves With Curtain Bangs",
+    "description": "This hairstyle is a medium-length cut with soft, loose waves and curtain bangs that part gently around the center. The layers are subtle and mostly concentrated around the face so the shape still feels full through the lower half. It is romantic, casual, and easy to translate into a salon-friendly everyday look.",
+    "aliases": [
+      "hairstyle11.jpg"
+    ],
+    "attributes": {
+      "length": "shoulder",
+      "family": "layered-cut",
+      "texture": "soft-wave",
+      "fringe": "curtain-bangs",
+      "parting": "center",
+      "color": "brunette",
+      "style": "wavy-cut"
+    }
+  },
+  {
+    "filename": "short-curly-bob-with-defined-volume.jpg",
+    "name": "Short Curly Bob With Defined Volume",
+    "description": "This cut is a short curly bob with rounded volume and well-defined ringlets that sit between cheek and chin length. The shape is sculpted to stay full at the sides while still showing separation and bounce in each curl cluster. It feels lively, expressive, and beautifully balanced.",
+    "aliases": [
+      "hairstyle12.jpg"
+    ],
+    "attributes": {
+      "length": "chin",
+      "family": "curly-bob",
+      "texture": "defined-curl",
+      "fringe": "none",
+      "parting": "off-center",
+      "color": "brunette",
+      "style": "curly-cut"
+    }
+  },
+  {
+    "filename": "long-face-framing-layers-with-curtain-bangs.png",
+    "name": "Long Face-Framing Layers With Curtain Bangs",
+    "description": "This hairstyle features long hair with a center part, soft curtain bangs, and front layers that begin around the cheekbones and sweep outward. The overall length stays intact and smooth, but the front sections add flattering movement and openness around the face. It is polished, feminine, and timeless.",
+    "aliases": [
+      "hairstyle2.png"
+    ],
+    "attributes": {
+      "length": "long",
+      "family": "layered-cut",
+      "texture": "sleek-straight",
+      "fringe": "curtain-bangs",
+      "parting": "center",
+      "color": "blonde",
+      "style": "layered-cut"
+    }
+  },
+  {
+    "filename": "choppy-wolf-cut-with-piecey-fringe.png",
+    "name": "Choppy Wolf Cut With Piecey Fringe",
+    "description": "This reference is a shaggy wolf cut with a heavily textured crown, piecey fringe, and airy separation through the ends. The cut has strong volume up top and a lighter, more tapered shape through the lower lengths, which gives it that modern undone edge. It looks cool, lived-in, and intentionally messy.",
+    "aliases": [
+      "hairstyle4.png"
+    ],
+    "attributes": {
+      "length": "shoulder",
+      "family": "wolf-cut",
+      "texture": "piecey-texture",
+      "fringe": "full-bangs",
+      "parting": "center",
+      "color": "blonde",
+      "style": "wolf-cut"
+    }
+  },
+  {
+    "filename": "polished-retro-glam-blowout.jpg",
+    "name": "Polished Retro Glam Blowout",
+    "description": "This hairstyle is a glamorous medium-length blowout with big brushed curls, strong shine, and a distinctly retro finish. The layering is subtle, but the styling creates major movement and a plush rounded shape through the sides and ends. It feels elegant, expensive, and old-Hollywood inspired.",
+    "aliases": [
+      "hairstyle5.jpg"
+    ],
+    "attributes": {
+      "length": "shoulder",
+      "family": "lob",
+      "texture": "retro-blowout",
+      "fringe": "none",
+      "parting": "side",
+      "color": "blonde",
+      "style": "wavy-cut"
+    }
+  },
+  {
+    "filename": "beachy-center-part-waves.jpg",
+    "name": "Beachy Center-Part Waves",
+    "description": "This look features medium-to-long hair with a center part and loose beachy waves that start around the cheekbones and continue through the ends. The finish is soft and slightly tousled, with enough definition to feel styled but not overly formal. It is flattering, wearable, and ideal for an effortless textured look.",
+    "aliases": [
+      "hairstyle6.jpg"
+    ],
+    "attributes": {
+      "length": "shoulder",
+      "family": "layered-cut",
+      "texture": "beach-wave",
+      "fringe": "none",
+      "parting": "center",
+      "color": "blonde",
+      "style": "wavy-cut"
+    }
+  },
+  {
+    "filename": "short-curly-bob-with-side-swept-fringe.jpg",
+    "name": "Short Curly Bob With Side-Swept Fringe",
+    "description": "This hairstyle is a short curly bob with springy wave-to-curl texture and a side-swept fringe that softens the forehead. The shape is rounded and full, but the curls are separated enough to keep the silhouette light and playful. It feels fresh, feminine, and full of movement.",
+    "aliases": [
+      "hairstyle7.jpg"
+    ],
+    "attributes": {
+      "length": "chin",
+      "family": "curly-bob",
+      "texture": "defined-curl",
+      "fringe": "side-swept-bangs",
+      "parting": "side",
+      "color": "blonde",
+      "style": "curly-cut"
+    }
+  },
+  {
+    "filename": "textured-wavy-lob-with-money-piece-highlights.jpg",
+    "name": "Textured Wavy Lob With Money-Piece Highlights",
+    "description": "This cut is a shoulder-grazing wavy lob with a center part, soft broken texture, and brighter money-piece highlights around the face. The baseline is fairly blunt, but the styling gives the shape movement and an easy beachy polish. It looks modern, dimensional, and flattering on many face shapes.",
+    "aliases": [
+      "hairstyle8.jpg"
+    ],
+    "attributes": {
+      "length": "collarbone",
+      "family": "lob",
+      "texture": "soft-wave",
+      "fringe": "none",
+      "parting": "center",
+      "color": "highlighted-blonde",
+      "style": "lob"
+    }
+  },
+  {
+    "filename": "long-hollywood-waves-with-middle-part.jpg",
+    "name": "Long Hollywood Waves With Middle Part",
+    "description": "This style features long glossy hair parted down the center and styled into smooth, defined Hollywood-inspired waves. The wave pattern is uniform and controlled, creating a sleek ribbon-like finish with plenty of shine. It feels elevated, formal, and extremely polished.",
+    "aliases": [
+      "hairstyle9.jpg"
+    ],
+    "attributes": {
+      "length": "long",
+      "family": "long-cut",
+      "texture": "glam-wave",
+      "fringe": "none",
+      "parting": "center",
+      "color": "black",
+      "style": "wavy-cut"
+    }
+  },
+  {
+    "filename": "textured-lob-with-bold-money-piece-highlights.webp",
+    "name": "Textured Lob With Bold Money-Piece Highlights",
+    "description": "This hairstyle is a textured long bob with shattered ends, soft wave, and strong bright money-piece highlights framing the face. The darker root and neutral brunette base create depth, while the pale front ribbons make the cut pop immediately. It feels trendy, dimensional, and highly visual.",
+    "aliases": [
+      "highlights.webp"
+    ],
+    "attributes": {
+      "length": "collarbone",
+      "family": "lob",
+      "texture": "soft-wave",
+      "fringe": "none",
+      "parting": "center",
+      "color": "highlighted-blonde",
+      "style": "lob"
+    }
+  },
+  {
+    "filename": "layered-midi-cut-with-bottleneck-bangs.jpg",
+    "name": "Layered Midi Cut With Bottleneck Bangs",
+    "description": "This medium-length cut sits around the shoulders with soft layers through the front and bottleneck bangs that narrow toward the brow before opening around the cheeks. The styling has a relaxed wave and a bit of grit, which keeps the silhouette youthful and slightly undone. It feels modern, approachable, and fashion aware.",
+    "aliases": [
+      "lobs.jpg"
+    ],
+    "attributes": {
+      "length": "shoulder",
+      "family": "midi-cut",
+      "texture": "soft-wave",
+      "fringe": "curtain-bangs",
+      "parting": "center",
+      "color": "brunette",
+      "style": "layered-cut"
+    }
+  },
+  {
+    "filename": "sleek-center-part-lob.jpg",
+    "name": "Sleek Center-Part Lob",
+    "description": "This haircut is a sleek center-part lob with a smooth finish and a precise line that lands close to the collarbone. There is very little visible layering, which gives the cut a strong shape and a healthy, dense appearance. It reads minimal, clean, and sophisticated.",
+    "aliases": [
+      "lob_cut.jpg"
+    ],
+    "attributes": {
+      "length": "collarbone",
+      "family": "lob",
+      "texture": "sleek-straight",
+      "fringe": "none",
+      "parting": "center",
+      "color": "blonde",
+      "style": "lob"
+    }
+  },
+  {
+    "filename": "voluminous-70s-layered-blowout.jpg",
+    "name": "Voluminous 70s Layered Blowout",
+    "description": "This hairstyle is a long layered blowout with pronounced 70s-inspired volume, curved face-framing sections, and airy flipped movement through the lengths. The overall shape is full and buoyant without becoming bulky, thanks to the well-placed layering. It feels glamorous, soft, and instantly salon styled.",
+    "aliases": [
+      "MatildaDjerf-e92a47b76b2540518fab3d644584fd1e.jpg"
+    ],
+    "attributes": {
+      "length": "long",
+      "family": "layered-cut",
+      "texture": "feathered-blowout",
+      "fringe": "none",
+      "parting": "center",
+      "color": "blonde",
+      "style": "layered-cut"
+    }
+  },
+  {
+    "filename": "curly-shag-with-short-fringe.jpg",
+    "name": "Curly Shag With Short Fringe",
+    "description": "This cut is a curly shag with lots of layered texture, rounded volume, and a short fringe that sits well above the brows. The curls are loose enough to look airy but still defined enough to give the shape bounce and personality. It feels playful, artsy, and intentionally imperfect in the best way.",
+    "aliases": [
+      "Screen202020-07-14206.33.1120PM.jpg"
+    ],
+    "attributes": {
+      "length": "shoulder",
+      "family": "curly-shag",
+      "texture": "defined-curl",
+      "fringe": "short-fringe",
+      "parting": "no-visible-part",
+      "color": "brunette",
+      "style": "curly-cut"
+    }
+  },
+  {
+    "filename": "layered-long-bob-with-side-swept-bangs.jpg",
+    "name": "Layered Long Bob With Side-Swept Bangs",
+    "description": "This hairstyle is a layered long bob with a soft side-swept fringe and lightly textured ends. The cut sits around the shoulders and uses the fringe plus crown lift to create a flattering, slightly tousled silhouette. It feels approachable, modern, and easy to style with movement.",
+    "aliases": [
+      "taylor-swift-hair.jpg"
+    ],
+    "attributes": {
+      "length": "shoulder",
+      "family": "lob",
+      "texture": "tousled-wave",
+      "fringe": "side-swept-bangs",
+      "parting": "side",
+      "color": "blonde",
+      "style": "lob"
+    }
+  },
+  {
+    "filename": "textured-short-bob-with-face-framing-bangs.jpg",
+    "name": "Textured Short Bob With Face-Framing Bangs",
+    "description": "This short bob is softly textured with a rounded jaw-length shape and broken-up bangs that frame the upper face rather than forming a blunt line. The ends are slightly piecey and the styling bends inward just enough to keep the cut refined. It looks chic, soft, and contemporary.",
+    "aliases": [
+      "textured-short-bob-with-face-framing-bangs.jpg"
+    ],
+    "attributes": {
+      "length": "jaw",
+      "family": "bob",
+      "texture": "soft-texture",
+      "fringe": "face-framing",
+      "parting": "no-visible-part",
+      "color": "red",
+      "style": "bob"
+    }
+  }
+]

@@ -15,6 +15,8 @@ const __filename = fileURLToPath(
 const __dirname = path.dirname(__filename);
 const PORT = Number(process.env.PORT || 3013);
 const MODEL_NAME = process.env.NANO_BANANA_MODEL || "gemini-3.1-flash-image-preview";
+const IMAGE_PROVIDER_LABEL = process.env.IMAGE_PROVIDER_LABEL || "Nano Banana";
+const DEFAULT_IMAGE_THINKING_LEVEL = "High";
 const generatedFolder = path.join(__dirname, "generated");
 const logsFolder = path.join(__dirname, "logs");
 const modelsFolder = path.join(__dirname, "models");
@@ -312,6 +314,7 @@ const serializeErrorForLog = (error) => ({
     publicMessage: String(error?.publicMessage || ""),
     statusCode: Number(error?.statusCode || 0) || undefined,
     promptBlocked: String(error?.promptBlocked || ""),
+    promptBlockMessage: String(error?.promptBlockMessage || ""),
     providerFailureSummary: String(error?.providerFailureSummary || ""),
     stack: String(error?.stack || "")
 });
@@ -352,6 +355,16 @@ const getErrorDetails = (error) => {
 
     if (structuredApiError?.message) {
         return structuredApiError.message;
+    }
+
+    const promptBlocked = String(error?.promptBlocked || "").trim().toUpperCase();
+    const promptBlockMessage = String(error?.promptBlockMessage || "").trim();
+
+    if (promptBlocked || promptBlockMessage) {
+        return [
+            promptBlocked ? `promptBlocked=${promptBlocked}` : "",
+            promptBlockMessage ? `promptBlockMessage=${promptBlockMessage}` : ""
+        ].filter(Boolean).join("; ");
     }
 
     const rawMessage = getErrorText(error);
@@ -404,6 +417,29 @@ const hasSafetyBlockSignal = (...values) => values
     .map((value) => String(value).toLowerCase())
     .some((value) => safetyBlockIndicators.some((indicator) => value.includes(indicator)));
 
+const getPromptBlockReason = (error) => String(error?.promptBlocked || "").trim().toUpperCase();
+
+const getPromptBlockMessage = (error) => String(error?.promptBlockMessage || "").trim();
+
+const getProviderBlockedPublicMessage = (error) => {
+    const promptBlockReason = getPromptBlockReason(error);
+    const promptBlockMessage = getPromptBlockMessage(error);
+
+    if (promptBlockMessage) {
+        return promptBlockMessage;
+    }
+
+    if (promptBlockReason === "OTHER") {
+        return `${IMAGE_PROVIDER_LABEL} rejected this image request with block reason OTHER. The provider did not return a more specific explanation. Check the browser console for the raw provider details and try a different photo, reference image, or prompt.`;
+    }
+
+    if (promptBlockReason) {
+        return `${IMAGE_PROVIDER_LABEL} rejected this image request with block reason ${promptBlockReason}. Try a different photo, reference image, or prompt.`;
+    }
+
+    return `${IMAGE_PROVIDER_LABEL} blocked this image request. Try a different photo, reference image, or prompt.`;
+};
+
 const shouldRetryImageGenerationRequest = (error) => {
     const promptBlocked = String(error?.promptBlocked || "").trim().toLowerCase();
     const providerFailureSummary = String(error?.providerFailureSummary || "").trim().toLowerCase();
@@ -454,8 +490,6 @@ const shouldRetryImageGenerationRequest = (error) => {
         "temporarily unavailable"
     ].some((value) => combinedText.includes(value));
 };
-
-const shouldDisableThinkingConfigForModel = (modelName) => /image-preview/i.test(String(modelName || ""));
 
 const shouldRetryWithoutThinkingConfig = ({ error, thinkingLevel = "" }) => {
     if (!thinkingLevel) {
@@ -1051,9 +1085,20 @@ const buildPrecisionHairSwapPrompt = ({ specificHairDescription = "" }) => {
     ].filter(Boolean).join(" ");
 };
 
-const buildTemplateEditPrompt = ({ extraPrompt }) => buildPrecisionHairSwapPrompt({
-    specificHairDescription: extraPrompt
-});
+const buildTemplateEditPrompt = ({ extraPrompt }) => {
+    const normalizedExtraPrompt = String(extraPrompt || "").trim();
+
+    return [
+        "Compose a professional hair integration using Image 1 as the primary subject and Image 2 as the hairstyle reference.",
+        "Maintain the facial geometry and identity of the subject in Image 1 entirely.",
+        "Adapt the hairstyle from Image 2 to match the head orientation and perspective of Image 1.",
+        "Blending must occur naturally at the hairline and temples, with strands appearing to emerge from the scalp.",
+        "Apply the lighting direction, color temperature, and depth of field from Image 1 to the new hair.",
+        "Ensure soft contact shadows are cast onto the forehead and neck.",
+        "Final output should be a sharp, high-resolution salon-quality render with realistic hair texture.",
+        normalizedExtraPrompt ? `Additional styling note: ${normalizedExtraPrompt}` : ""
+    ].filter(Boolean).join(" ");
+};
 
 const buildRearViewPrompt = ({ lookName, lookDescription, angleLabel }) => {
     return [
@@ -1227,6 +1272,7 @@ const getImageServiceErrorResponse = (error, fallbackMessage = "Something went w
         String(error?.promptBlocked || "")
     ].join(" ").toLowerCase();
     const details = getErrorDetails(error);
+    const promptBlockReason = getPromptBlockReason(error);
 
     if (
         combinedMessage.includes("thinking level") &&
@@ -1240,10 +1286,10 @@ const getImageServiceErrorResponse = (error, fallbackMessage = "Something went w
         };
     }
 
-    if (hasSafetyBlockSignal(combinedMessage)) {
+    if (promptBlockReason || hasSafetyBlockSignal(combinedMessage)) {
         return {
             statusCode: 422,
-            message: "The image service blocked this request. Try a different photo, reference image, or prompt.",
+            message: getProviderBlockedPublicMessage(error),
             reason: "image_service_blocked",
             details
         };
@@ -1817,7 +1863,6 @@ const generateImageVariation = async({
     referenceImageDataUrls = [],
     referenceFilename = "",
     useFacialFit = false,
-    thinkingLevel = "",
     useTwoPassRefinement = false
 }) => {
     const requestStartedAt = Date.now();
@@ -1887,20 +1932,8 @@ const generateImageVariation = async({
     const mimeType = getMimeTypeFromDataUrl(effectiveImageBase64);
     const base64Payload = getBase64Payload(effectiveImageBase64);
     const ai = getGoogleClient();
-    let effectiveThinkingLevel = shouldDisableThinkingConfigForModel(MODEL_NAME) ? "" : thinkingLevel;
-
-    if (thinkingLevel && !effectiveThinkingLevel) {
-        writeImageGeneratorLog({
-            level: "INFO",
-            category: "thinking-config",
-            message: "Skipping explicit thinking configuration because the current image model does not support it.",
-            data: {
-                requestLabel: savePrefix || "",
-                model: MODEL_NAME,
-                requestedThinkingLevel: thinkingLevel
-            }
-        });
-    }
+    // Gemini 3.1 Flash Image defaults to minimal thinking, so we pin High for every image flow.
+    let effectiveThinkingLevel = DEFAULT_IMAGE_THINKING_LEVEL;
 
     normalizedReferenceImages
         .filter(Boolean)
@@ -1975,6 +2008,7 @@ const generateImageVariation = async({
                 );
                 error.providerFailureSummary = failureSummary;
                 error.promptBlocked = String(response?.promptFeedback?.blockReason || "").trim().toUpperCase();
+                error.promptBlockMessage = String(response?.promptFeedback?.blockReasonMessage || "").trim();
                 throw error;
             }
 
@@ -2308,7 +2342,11 @@ app.post("/api/template-hairstyles", async(req, res) => {
                 templatePrompt: resolvedTemplate.prompt,
                 extraPrompt
             });
-            const attemptedReferenceVariants = ["original"];
+            const blurredReferenceImageDataUrl = getBlurredStyleReferenceDataUrl(resolvedTemplate.filename);
+            const originalReferenceImageDataUrl = blurredReferenceImageDataUrl ? "" : getStyleReferenceDataUrl(resolvedTemplate.filename);
+            const initialReferenceImageDataUrl = blurredReferenceImageDataUrl || originalReferenceImageDataUrl;
+            const initialReferenceImageVariant = blurredReferenceImageDataUrl ? "blurred" : "original";
+            const attemptedReferenceVariants = [initialReferenceImageVariant];
 
             try {
                 const runTemplateAttempt = async(referenceImageDataUrl) => generateImageVariation({
@@ -2322,15 +2360,18 @@ app.post("/api/template-hairstyles", async(req, res) => {
                 });
 
                 let result;
-                let referenceImageVariant = "original";
+                let referenceImageVariant = initialReferenceImageVariant;
 
                 try {
-                    result = await runTemplateAttempt(getStyleReferenceDataUrl(resolvedTemplate.filename));
+                    result = await runTemplateAttempt(initialReferenceImageDataUrl);
                 } catch (error) {
-                    if (!shouldRetryWithBlurredStyleReference({
+                    if (
+                        initialReferenceImageVariant !== "original" ||
+                        !shouldRetryWithBlurredStyleReference({
                             error,
                             filename: resolvedTemplate.filename
-                        })) {
+                        })
+                    ) {
                         throw error;
                     }
 

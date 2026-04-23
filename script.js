@@ -399,10 +399,28 @@ const logBrowserGenerationInput = (requestName, input) => {
 };
 
 const logBrowserGenerationOutput = (requestName, output) => {
-  console.log("[Image Generator] output", {
+  const logger = output?.ok === false ? console.error : console.log;
+
+  logger("[Image Generator] output", {
     request: requestName,
     ...output
   });
+};
+
+const logBrowserGenerationResultErrors = (requestName, output) => {
+  const resultSummaries = [
+    ...(Array.isArray(output?.results) ? output.results : []),
+    ...(output?.result ? [output.result] : [])
+  ];
+
+  resultSummaries
+    .filter((result) => result?.error || result?.errorReason || result?.errorDetails)
+    .forEach((result) => {
+      console.error("[Image Generator] result error", {
+        request: requestName,
+        ...result
+      });
+    });
 };
 
 const requestGenerationJson = async ({
@@ -441,7 +459,9 @@ const requestGenerationJson = async ({
       throw error;
     }
 
-    logBrowserGenerationOutput(requestName, buildOutputSummary(payload, response));
+    const outputSummary = buildOutputSummary(payload, response);
+    logBrowserGenerationOutput(requestName, outputSummary);
+    logBrowserGenerationResultErrors(requestName, outputSummary);
     return payload;
   } catch (error) {
     if (!(error instanceof Error)) {
