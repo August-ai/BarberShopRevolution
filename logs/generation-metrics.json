@@ -1,11 +1,38 @@
 {
-  "updatedAt": "2026-04-23T19:51:09.715Z",
-  "totalCompleted": 24,
-  "totalDurationMs": 574132,
-  "averageDurationMs": 23922.17,
+  "updatedAt": "2026-04-23T20:34:05.234Z",
+  "totalCompleted": 27,
+  "totalDurationMs": 650285,
+  "averageDurationMs": 24084.63,
   "minDurationMs": 10177,
   "maxDurationMs": 43091,
   "recent": [
+    {
+      "timestamp": "2026-04-23T20:34:05.234Z",
+      "requestLabel": "curly-shag-with-short-fringe",
+      "savePrefix": "curly-shag-with-short-fringe",
+      "durationMs": 20016,
+      "attemptNumber": 1,
+      "referenceImageCount": 1,
+      "savedFile": "curly-shag-with-short-fringe_1776976445227_842es4.jpg"
+    },
+    {
+      "timestamp": "2026-04-23T20:33:45.207Z",
+      "requestLabel": "beachy-center-part-waves",
+      "savePrefix": "beachy-center-part-waves",
+      "durationMs": 25097,
+      "attemptNumber": 1,
+      "referenceImageCount": 1,
+      "savedFile": "beachy-center-part-waves_1776976425200_m5o0x6.jpg"
+    },
+    {
+      "timestamp": "2026-04-23T20:12:31.771Z",
+      "requestLabel": "layered-midi-cut-with-bottleneck-bangs",
+      "savePrefix": "layered-midi-cut-with-bottleneck-bangs",
+      "durationMs": 31040,
+      "attemptNumber": 1,
+      "referenceImageCount": 1,
+      "savedFile": "layered-midi-cut-with-bottleneck-bangs_1776975151764_sw6f33.jpg"
+    },
     {
       "timestamp": "2026-04-23T19:51:09.715Z",
       "requestLabel": "textured-lob-with-bold-money-piece-highlights",

@@ -45,7 +45,7 @@ const pythonCommand = process.env.PYTHON_BIN || "python";
 const execFileAsync = promisify(execFile);
 const IMAGE_GENERATION_MAX_ATTEMPTS = Math.max(1, Number(process.env.IMAGE_GENERATION_MAX_ATTEMPTS || 3));
 const SALON_SESSION_COOKIE_NAME = "salon_auth";
-const SALON_SESSION_DURATION_MS = 1000 * 60 * 60 * 12;
+const SALON_SESSION_DURATION_MS = 1000 * 60 * 60 * 24 * 365 * 20;
 const DEFAULT_SALON_ACCESS_CONFIG = {
     salons: {
         salon1: {
@@ -814,8 +814,7 @@ const signSalonSessionValue = (value) => crypto
 const createSalonSessionCookieValue = ({ salonSlug, username }) => {
     const payload = {
         salonSlug: sanitizeSalonSlug(salonSlug),
-        username: String(username || ""),
-        expiresAt: Date.now() + SALON_SESSION_DURATION_MS
+        username: String(username || "")
     };
     const encodedPayload = Buffer.from(JSON.stringify(payload), "utf-8").toString("base64url");
     const signature = signSalonSessionValue(encodedPayload);
@@ -840,7 +839,7 @@ const parseSalonSessionCookieValue = (value) => {
     try {
         const payload = JSON.parse(Buffer.from(encodedPayload, "base64url").toString("utf-8"));
 
-        if (!payload || payload.expiresAt <= Date.now()) {
+        if (!payload) {
             return null;
         }
 

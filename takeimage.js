@@ -7,16 +7,13 @@ const captureStage = document.getElementById("captureStage");
 const capturePreviewImage = document.getElementById("capturePreviewImage");
 const retakeCaptureButton = document.getElementById("retakeCaptureButton");
 const captureStatusMessage = document.getElementById("captureStatusMessage");
-const salonNameHeading = document.getElementById("salonNameHeading");
 const continueToSalonButton = document.getElementById("continueToSalonButton");
+const previewActionRow = document.getElementById("previewActionRow");
 
 const API_BASE_URL = window.location.protocol === "file:" ? "http://localhost:3013" : window.location.origin;
 const CAPTURED_PHOTO_STORAGE_KEY = "capturedSalonPhoto";
 const currentPathSegments = window.location.pathname.split("/").filter(Boolean);
 const rawSalonSlug = decodeURIComponent(currentPathSegments[0] || "salon1");
-const salonLabel = rawSalonSlug
-  .replace(/[-_]+/g, " ")
-  .replace(/\b\w/g, (character) => character.toUpperCase());
 const IMAGE_TRANSFER_MAX_DIMENSION = 1600;
 const IMAGE_TRANSFER_QUALITY = 0.86;
 const IMAGE_TRANSFER_MIME_TYPE = "image/jpeg";
@@ -38,6 +35,17 @@ const setBusyState = (busy) => {
   continueToSalonButton.disabled = busy;
 };
 
+const setPreviewState = (hasImage) => {
+  captureStage.hidden = hasImage;
+  captureStage.classList.toggle("is-hidden", hasImage);
+  previewStep.hidden = !hasImage;
+  previewStep.classList.toggle("is-hidden", !hasImage);
+  capturePreviewImage.hidden = !hasImage;
+  previewActionRow.hidden = !hasImage;
+  retakeCaptureButton.hidden = !hasImage;
+  continueToSalonButton.hidden = !hasImage;
+};
+
 const openInputPicker = async (inputElement) => {
   if (!inputElement) {
     return;
@@ -55,23 +63,28 @@ const openInputPicker = async (inputElement) => {
   inputElement.click();
 };
 
-const openCameraPicker = async () => {
+const openCameraPicker = async (event) => {
+  event?.preventDefault();
+  event?.stopPropagation();
+
+  if (isUploading) {
+    return;
+  }
+
   lastCaptureSource = "camera";
   await openInputPicker(capturePhotoInput);
 };
 
-const openUploadPicker = async () => {
-  lastCaptureSource = "upload";
-  await openInputPicker(uploadPhotoInput);
-};
+const openUploadPicker = async (event) => {
+  event?.preventDefault();
+  event?.stopPropagation();
 
-const reopenLastCapturePicker = async () => {
-  if (lastCaptureSource === "upload") {
-    await openUploadPicker();
+  if (isUploading) {
     return;
   }
 
-  await openCameraPicker();
+  lastCaptureSource = "upload";
+  await openInputPicker(uploadPhotoInput);
 };
 
 const resetPreviewUrl = () => {
@@ -93,10 +106,7 @@ const resetFlow = () => {
   capturePhotoInput.value = "";
   uploadPhotoInput.value = "";
   capturePreviewImage.removeAttribute("src");
-  capturePreviewImage.hidden = true;
-  previewStep.classList.add("is-hidden");
-  previewStep.hidden = true;
-  captureStage.classList.remove("is-hidden");
+  setPreviewState(false);
   setStatus("");
 };
 
@@ -164,10 +174,9 @@ const showPreview = (file) => {
   resetPreviewUrl();
   previewUrl = URL.createObjectURL(file);
   capturePreviewImage.src = previewUrl;
-  capturePreviewImage.hidden = false;
-  captureStage.classList.add("is-hidden");
-  previewStep.classList.remove("is-hidden");
-  previewStep.hidden = false;
+  setPreviewState(true);
+  openCameraButton.blur();
+  openUploadButton.blur();
   setStatus("");
 };
 
@@ -215,19 +224,27 @@ const handleUpload = async () => {
   }
 };
 
-salonNameHeading.textContent = salonLabel;
+setPreviewState(false);
 
 openCameraButton.addEventListener("click", openCameraPicker);
 openUploadButton.addEventListener("click", openUploadPicker);
-retakeCaptureButton.addEventListener("click", () => {
+retakeCaptureButton.addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+
   if (isUploading) {
     return;
   }
 
+  retakeCaptureButton.blur();
   resetFlow();
-  reopenLastCapturePicker();
 });
-continueToSalonButton.addEventListener("click", handleUpload);
+continueToSalonButton.addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  continueToSalonButton.blur();
+  handleUpload();
+});
 
 const handleSelectedCaptureFile = (selectedFile, source = "camera") => {
   if (!selectedFile) {

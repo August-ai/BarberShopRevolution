@@ -12,7 +12,10 @@
 <body class="capture-page">
   <main class="capture-page-shell">
     <section class="capture-card">
-      <h1 class="capture-title"><span id="salonNameHeading">Salon</span></h1>
+      <div class="capture-header">
+        <p class="capture-kicker">Style Preview</p>
+        <h1 class="capture-title">Capture Your Look</h1>
+      </div>
 
       <section class="capture-stage" id="captureStage">
         <div class="action-row">
@@ -37,9 +40,9 @@
 
       <section class="capture-preview-panel is-hidden" id="previewStep" aria-label="Captured photo preview" hidden>
         <img class="capture-preview-image" id="capturePreviewImage" alt="Captured salon portrait preview" hidden>
-        <div class="action-row">
-          <button class="secondary-button" id="retakeCaptureButton" type="button">Retake</button>
-          <button class="secondary-button secondary-button-dark" id="continueToSalonButton" type="button">Continue</button>
+        <div class="action-row" id="previewActionRow" hidden>
+          <button class="secondary-button" id="retakeCaptureButton" type="button" hidden>Retake</button>
+          <button class="secondary-button secondary-button-dark" id="continueToSalonButton" type="button" hidden>Continue</button>
         </div>
       </section>
 
