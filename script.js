@@ -127,9 +127,14 @@ const COMMON_HAIR_COLORS = [
 
 let previewUrl = "";
 let isGenerating = false;
+let allowTemplateQueueingWhileBusy = false;
 let lastImageSelectionSource = "camera";
 let templateStyles = [];
 let templateMetadataCatalogPromise = null;
+let templateGenerationQueue = [];
+let isTemplateQueueProcessing = false;
+let nextBusyTokenId = 1;
+const activeBusyTokens = new Map();
 let selectedTemplateIds = new Set();
 let selectedImage = null;
 let activeLightboxResult = null;
@@ -318,6 +323,16 @@ const resolveHairColorPreviewUrl = (color) => (
   color.imageUrl.startsWith("http") ? color.imageUrl : `${API_BASE_URL}${color.imageUrl}`
 );
 
+const resolveHairColorReferenceUrl = (color) => {
+  const filename = getStyleFilenameFromImageUrl(color?.imageUrl || "");
+
+  if (filename) {
+    return `${API_BASE_URL}/blurred/${encodeURIComponent(filename)}`;
+  }
+
+  return resolveHairColorPreviewUrl(color);
+};
+
 const getStyleFilenameFromImageUrl = (imageUrl) => {
   const normalizedImageUrl = String(imageUrl || "").trim();
 
@@ -372,7 +387,7 @@ const getHairColorReferenceConsolePath = ({
   hairColorHex = ""
 }) => {
   if (hairColorReferenceKind === "portrait" && hairColorReferenceFilename) {
-    return `/styles/${hairColorReferenceFilename}`;
+    return `/blurred/${hairColorReferenceFilename}`;
   }
 
   if (hairColorReferenceKind === "swatch" && hairColorHex) {
@@ -511,7 +526,7 @@ const preloadCommonHairColorImages = () => {
 const syncTemplateNextButtonVisibility = () => {
   const shouldShow = !templatePanel.classList.contains("is-hidden");
   const hasSelectedTemplates = selectedTemplateIds.size > 0;
-  const shouldDisable = isGenerating || !hasSelectedTemplates;
+  const shouldDisable = (isGenerating && !allowTemplateQueueingWhileBusy) || !hasSelectedTemplates;
 
   templateNextDock.classList.toggle("is-hidden", !shouldShow);
   templateNextDock.setAttribute("aria-hidden", shouldShow ? "false" : "true");
@@ -775,13 +790,13 @@ const getHairColorReferencePayload = async (hexColor) => {
 
   if (commonHairColor?.imageUrl) {
     try {
-    return {
-      hairColorLabel: commonHairColor.label,
-      hairColorReferenceImageBase64: await getImageDataUrlFromUrl(resolveHairColorPreviewUrl(commonHairColor)),
-      hairColorReferenceKind: "portrait",
-      hairColorReferenceFilename: getStyleFilenameFromImageUrl(commonHairColor.imageUrl)
-    };
-  } catch (_error) {
+      return {
+        hairColorLabel: commonHairColor.label,
+        hairColorReferenceImageBase64: await getImageDataUrlFromUrl(resolveHairColorReferenceUrl(commonHairColor)),
+        hairColorReferenceKind: "portrait",
+        hairColorReferenceFilename: getStyleFilenameFromImageUrl(commonHairColor.imageUrl)
+      };
+    } catch (_error) {
       // Fall back to a generated swatch if the reference portrait can't be loaded.
     }
   }
@@ -834,6 +849,22 @@ const syncLightboxMarkupToolState = () => {
   lightboxMarkupCanvas.classList.toggle("is-interactive", isInteractive);
   lightboxMarkupCanvas.classList.toggle("is-drawing", isInteractive && activeLightboxMarkupTool === "draw");
   lightboxMarkupCanvas.classList.toggle("is-erasing", isInteractive && activeLightboxMarkupTool === "erase");
+};
+
+const hasPendingFollowUpViews = (result) => (
+  Array.isArray(result?.followUpViews)
+  && result.followUpViews.some((viewResult) => Boolean(viewResult?.pending))
+);
+
+const hasPendingPromptVariation = (result) => Boolean(result?.promptVariationResult?.pending);
+
+const syncLightboxActionAvailability = () => {
+  const hasActiveResult = Boolean(activeLightboxResult?.imageUrl);
+  const isLightboxLoading = lightboxImageShell.classList.contains("is-loading");
+
+  generateViewsButton.disabled = !hasActiveResult || isLightboxLoading || hasPendingFollowUpViews(activeLightboxResult);
+  variationPromptInput.disabled = !hasActiveResult;
+  generateVariationButton.disabled = !hasActiveResult || isLightboxLoading || hasPendingPromptVariation(activeLightboxResult);
 };
 
 const setActiveLightboxMarkupTool = (tool) => {
@@ -1061,12 +1092,14 @@ const setLightboxLoadingState = ({
     lightboxImageShell.classList.remove("is-loading");
     lightboxLoadingOverlay.classList.add("is-hidden");
     syncLightboxMarkupToolState();
+    syncLightboxActionAvailability();
     return;
   }
 
   lightboxImageShell.classList.add("is-loading");
   lightboxLoadingOverlay.classList.remove("is-hidden");
   syncLightboxMarkupToolState();
+  syncLightboxActionAvailability();
   lightboxLoadingTitle.textContent = title;
   lightboxLoadingText.textContent = text;
   startProgressController(lightboxProgressController);
@@ -1077,6 +1110,7 @@ const completeLightboxLoadingState = () => {
     lightboxImageShell.classList.remove("is-loading");
     lightboxLoadingOverlay.classList.add("is-hidden");
     syncLightboxMarkupToolState();
+    syncLightboxActionAvailability();
     resetProgressController(lightboxProgressController);
   });
 };
@@ -1113,11 +1147,17 @@ const closeLightbox = () => {
   setVariationHairColorCustomVisibility(false);
   clearLightboxMarkupCanvasSurface();
   syncVariationHairColorPreviewState();
+  syncLightboxActionAvailability();
   document.body.style.overflow = "";
 };
 
-const setBusyState = (busy) => {
+const syncBusyState = () => {
+  const busyTokens = [...activeBusyTokens.values()];
+  const busy = busyTokens.some((token) => token.locksSourceControls);
+  const allowTemplateQueueing = busyTokens.some((token) => token.allowTemplateQueueing);
+
   isGenerating = busy;
+  allowTemplateQueueingWhileBusy = busy && allowTemplateQueueing;
   randomButton.disabled = busy;
   templateButton.disabled = busy;
   nextButton.disabled = busy;
@@ -1125,11 +1165,30 @@ const setBusyState = (busy) => {
   captureButton.disabled = busy;
   uploadButton.disabled = busy;
   templateBackButton.disabled = busy;
-  templatePrompt.disabled = busy;
-  generateViewsButton.disabled = busy;
-  variationPromptInput.disabled = busy;
-  generateVariationButton.disabled = busy;
+  templatePrompt.disabled = busy && !allowTemplateQueueingWhileBusy;
   syncTemplateNextButtonVisibility();
+};
+
+const acquireBusyToken = ({ allowTemplateQueueing = false, locksSourceControls = true } = {}) => {
+  const token = {
+    id: nextBusyTokenId,
+    allowTemplateQueueing,
+    locksSourceControls
+  };
+
+  nextBusyTokenId += 1;
+  activeBusyTokens.set(token.id, token);
+  syncBusyState();
+  return token;
+};
+
+const releaseBusyToken = (token) => {
+  if (!token || !activeBusyTokens.has(token.id)) {
+    return;
+  }
+
+  activeBusyTokens.delete(token.id);
+  syncBusyState();
 };
 
 const openInputPicker = async (inputElement) => {
@@ -1253,6 +1312,9 @@ const resetToCaptureStep = () => {
   optionPanel.classList.add("is-hidden");
   templatePanel.classList.add("is-hidden");
   hideGenerationPanel();
+  templateGenerationQueue = [];
+  isTemplateQueueProcessing = false;
+  allowTemplateQueueingWhileBusy = false;
   selectedTemplateIds = new Set();
   activeTemplateFilters = createEmptyTemplateFilters();
   setTemplateFilterVisibility(false);
@@ -1769,12 +1831,14 @@ const renderViewResultsSection = (result) => {
 
 const syncLightboxPanels = () => {
   if (!activeLightboxResult) {
+    syncLightboxActionAvailability();
     return;
   }
 
   renderPromptVariationSection(activeLightboxResult);
   renderViewResultsSection(activeLightboxResult);
   scheduleLightboxMarkupCanvasRedraw();
+  syncLightboxActionAvailability();
 };
 
 const openResultWorkspace = (result) => {
@@ -1801,6 +1865,7 @@ const openResultWorkspace = (result) => {
   viewStatusMessage.textContent = "";
   variationStatusMessage.textContent = "";
   syncLightboxPanels();
+  syncLightboxActionAvailability();
   openLightbox(result.imageUrl, `${result.name} expanded generated hairstyle result`);
 };
 
@@ -2140,7 +2205,14 @@ const handleGenerateViews = async () => {
     return;
   }
 
+  if (lightboxImageShell.classList.contains("is-loading") || hasPendingFollowUpViews(activeLightboxResult)) {
+    viewStatusMessage.textContent = "These back-angle views are already being generated.";
+    syncLightboxPanels();
+    return;
+  }
+
   const resultReference = activeLightboxResult;
+  const busyToken = acquireBusyToken({ locksSourceControls: false });
   resultReference.followUpViews = [
     { id: "left-back-view", name: "Left Back View", pending: true },
     { id: "right-back-view", name: "Right Back View", pending: true }
@@ -2152,7 +2224,6 @@ const handleGenerateViews = async () => {
     title: "Generating More Views",
     text: "The selected result is being used to create additional back-angle views."
   });
-  setBusyState(true);
   let requestCompleted = false;
 
   try {
@@ -2189,7 +2260,7 @@ const handleGenerateViews = async () => {
       }
     }
 
-    setBusyState(false);
+    releaseBusyToken(busyToken);
   }
 };
 
@@ -2211,7 +2282,14 @@ const handleGeneratePromptVariation = async () => {
     return;
   }
 
+  if (lightboxImageShell.classList.contains("is-loading") || hasPendingPromptVariation(activeLightboxResult)) {
+    variationStatusMessage.textContent = "This prompt variation is already being generated.";
+    syncLightboxPanels();
+    return;
+  }
+
   const resultReference = activeLightboxResult;
+  const busyToken = acquireBusyToken({ locksSourceControls: false });
   resultReference.lastVariationPrompt = extraPrompt;
   resultReference.lastVariationHairColorHex = hairColorHex;
   resultReference.isVariationHairColorPanelOpen = isVariationHairColorPanelVisible;
@@ -2247,7 +2325,6 @@ const handleGeneratePromptVariation = async () => {
           : "The selected result and your custom color swatch are being used to create the new variation."
         : "The selected result is being used to create your new variation."
   });
-  setBusyState(true);
   let requestCompleted = false;
 
   try {
@@ -2322,7 +2399,7 @@ const handleGeneratePromptVariation = async () => {
       }
     }
 
-    setBusyState(false);
+    releaseBusyToken(busyToken);
   }
 };
 
@@ -2352,7 +2429,7 @@ const handleRandomHairstyles = async () => {
     text: "Your uploaded photo is being used to create a full set of new hairstyle previews."
   });
   scrollToGenerationPanel();
-  setBusyState(true);
+  const busyToken = acquireBusyToken();
   setStatus("Creating five hairstyle variations.");
   let requestCompleted = false;
 
@@ -2381,7 +2458,7 @@ const handleRandomHairstyles = async () => {
     } else {
       setGenerationProgressState({ active: false });
     }
-    setBusyState(false);
+    releaseBusyToken(busyToken);
   }
 };
 
@@ -2415,7 +2492,98 @@ const handleTemplateBack = () => {
   setStatus("Choose how you want to generate your new hairstyle.");
 };
 
-const handleTemplateNext = async () => {
+const formatTemplateBatchCount = (count) => `${count} queued batch${count === 1 ? "" : "es"}`;
+
+const processTemplateGenerationQueue = async () => {
+  if (isTemplateQueueProcessing || templateGenerationQueue.length === 0) {
+    return;
+  }
+
+  isTemplateQueueProcessing = true;
+  const busyToken = acquireBusyToken({ allowTemplateQueueing: true });
+
+  try {
+    while (templateGenerationQueue.length > 0) {
+      const batch = templateGenerationQueue.shift();
+      const {
+        selectedTemplates,
+        extraPrompt,
+        cards,
+        batchAnchor,
+        hasExistingResults,
+        sourcePreviewUrl,
+        shouldAutoScrollToResults
+      } = batch;
+      const queuedBatchCount = templateGenerationQueue.length;
+
+      setGenerationHeading("Template Set", "Chosen hairstyle templates");
+      showGenerationPanel();
+      setGenerationProgressState({
+        active: true,
+        imageUrl: sourcePreviewUrl,
+        kicker: "Selected Photo",
+        title: "Generating your chosen template looks",
+        text: "The original photo is being used to create the selected hairstyle looks."
+      });
+      setStatus(queuedBatchCount > 0
+        ? `Creating your selected hairstyle looks. ${formatTemplateBatchCount(queuedBatchCount)} waiting after this batch.`
+        : "Creating your selected hairstyle looks.");
+
+      let requestCompleted = false;
+
+      try {
+        const imageBase64 = await getSelectedImageDataUrl();
+        const results = await requestTemplateHairstyles({
+          imageBase64,
+          templates: selectedTemplates,
+          extraPrompt
+        });
+
+        requestCompleted = true;
+        renderGenerationResults(cards, results);
+
+        if (shouldAutoScrollToResults && selectedTemplateIds.size === 0 && templateGenerationQueue.length === 0) {
+          scrollToResultBatch(batchAnchor || cards[0]);
+        }
+
+        setStatus(templateGenerationQueue.length > 0
+          ? `${selectedTemplates.length === 1 ? "This template result is ready." : "These template results are ready."} ${formatTemplateBatchCount(templateGenerationQueue.length)} still waiting.`
+          : hasExistingResults
+            ? "Your new template results were added below the previous set."
+            : "Your selected template results are ready.");
+      } catch (error) {
+        const fallbackResults = selectedTemplates.map((template) => ({
+          name: template.name,
+          sourcePrompt: template.prompt,
+          errorMessage: error.message
+        }));
+
+        renderGenerationResults(cards, fallbackResults);
+
+        if (shouldAutoScrollToResults && selectedTemplateIds.size === 0 && templateGenerationQueue.length === 0) {
+          scrollToResultBatch(batchAnchor || cards[0]);
+        }
+
+        setStatus(templateGenerationQueue.length > 0
+          ? `${error.message} ${formatTemplateBatchCount(templateGenerationQueue.length)} still waiting.`
+          : error.message);
+      } finally {
+        if (templateGenerationQueue.length === 0) {
+          if (requestCompleted) {
+            completeGenerationProgressState();
+          } else {
+            setGenerationProgressState({ active: false });
+          }
+        }
+      }
+    }
+  } finally {
+    isTemplateQueueProcessing = false;
+    releaseBusyToken(busyToken);
+  }
+};
+
+const handleTemplateNext = () => {
   if (!hasSelectedImage()) {
     setStatus("Please take a picture before continuing.");
     return;
@@ -2435,6 +2603,7 @@ const handleTemplateNext = async () => {
 
   const extraPrompt = templatePrompt.value.trim();
   const sourcePreviewUrl = getSelectedImagePreviewUrl();
+  const shouldAutoScrollToResults = !isTemplateQueueProcessing && templateGenerationQueue.length === 0;
   const hasExistingResults = Boolean(resultGrid.querySelector(".result-card"));
   const batchAnchor = hasExistingResults
     ? createResultBatchDivider({
@@ -2446,54 +2615,22 @@ const handleTemplateNext = async () => {
   const cards = selectedTemplates.map(createResultCard);
   setGenerationHeading("Template Set", "Chosen hairstyle templates");
   showGenerationPanel();
-  setGenerationProgressState({
-    active: true,
-    imageUrl: sourcePreviewUrl,
-    kicker: "Selected Photo",
-    title: "Generating your chosen template looks",
-    text: "The original photo is being used to create the selected hairstyle looks."
+
+  templateGenerationQueue.push({
+    selectedTemplates,
+    extraPrompt,
+    cards,
+    batchAnchor,
+    hasExistingResults,
+    sourcePreviewUrl,
+    shouldAutoScrollToResults
   });
-  if (hasExistingResults) {
-    scrollToResultBatch(batchAnchor || cards[0]);
-  } else {
-    scrollToGenerationPanel();
-  }
-  setBusyState(true);
-  setStatus("Creating your selected hairstyle looks.");
-  let requestCompleted = false;
 
-  try {
-    const imageBase64 = await getSelectedImageDataUrl();
-    const results = await requestTemplateHairstyles({
-      imageBase64,
-      templates: selectedTemplates,
-      extraPrompt
-    });
+  setStatus(shouldAutoScrollToResults
+    ? "Creating your selected hairstyle looks."
+    : `Added ${selectedTemplates.length} selected template look${selectedTemplates.length === 1 ? "" : "s"} to the queue. ${formatTemplateBatchCount(templateGenerationQueue.length)} waiting.`);
 
-    requestCompleted = true;
-    renderGenerationResults(cards, results);
-    scrollToResultBatch(batchAnchor || cards[0]);
-    setStatus(hasExistingResults
-      ? "Your new template results were added below the previous set."
-      : "Your selected template results are ready.");
-  } catch (error) {
-    const fallbackResults = selectedTemplates.map((template) => ({
-      name: template.name,
-      sourcePrompt: template.prompt,
-      errorMessage: error.message
-    }));
-
-    renderGenerationResults(cards, fallbackResults);
-    scrollToResultBatch(batchAnchor || cards[0]);
-    setStatus(error.message);
-  } finally {
-    if (requestCompleted) {
-      completeGenerationProgressState();
-    } else {
-      setGenerationProgressState({ active: false });
-    }
-    setBusyState(false);
-  }
+  processTemplateGenerationQueue();
 };
 
 captureButton.addEventListener("click", openCameraPicker);
@@ -2640,6 +2777,7 @@ window.addEventListener("keydown", (event) => {
 restoreCapturedSalonPhoto();
 syncTemplateNextButtonVisibility();
 syncLightboxMarkupToolState();
+syncLightboxActionAvailability();
 variationHairColorInput.value = DEFAULT_VARIATION_HAIR_COLOR;
 setVariationHairColorCustomVisibility(false);
 setVariationHairColorPanelVisibility(false);

@@ -2540,6 +2540,11 @@ app.post("/api/generated-hairstyle-variation", async(req, res) => {
         const normalizedHairColorReferenceKind = String(
             hairColorReferenceKind || (hairColorSwatchBase64 ? "swatch" : "")
         ).trim().toLowerCase();
+        const blurredHairColorReferenceImageBase64 = normalizedHairColorReferenceKind === "portrait" &&
+            normalizedHairColorReferenceFilename ?
+            getBlurredStyleReferenceDataUrl(normalizedHairColorReferenceFilename) : "";
+        const preferredHairColorReferenceImageBase64 = blurredHairColorReferenceImageBase64 || normalizedHairColorReferenceImageBase64;
+        const isUsingBlurredHairColorReferenceByDefault = Boolean(blurredHairColorReferenceImageBase64);
 
         if (!imageBase64) {
             return res.status(400).json({ error: "Please choose an image first." });
@@ -2549,7 +2554,7 @@ app.post("/api/generated-hairstyle-variation", async(req, res) => {
             return res.status(400).json({ error: "Please choose a hairstyle before continuing." });
         }
 
-        if (!normalizedExtraPrompt && !normalizedHairColorHex && !normalizedHairColorReferenceImageBase64) {
+        if (!normalizedExtraPrompt && !normalizedHairColorHex && !preferredHairColorReferenceImageBase64) {
             return res.status(400).json({ error: "Add an extra prompt or choose a hair color before generating a variation." });
         }
 
@@ -2601,11 +2606,12 @@ app.post("/api/generated-hairstyle-variation", async(req, res) => {
 
         try {
             variationAttempt = await runVariationAttempt(
-                normalizedHairColorReferenceImageBase64,
+                preferredHairColorReferenceImageBase64,
                 normalizedHairColorReferenceKind
             );
         } catch (error) {
             if (
+                !isUsingBlurredHairColorReferenceByDefault &&
                 normalizedHairColorReferenceKind === "portrait" &&
                 normalizedHairColorReferenceFilename &&
                 shouldRetryWithBlurredStyleReference({
