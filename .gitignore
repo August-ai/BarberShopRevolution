@@ -3,3 +3,4 @@ node_modules/
 generated/
 models/*.onnx
 models/*.tflite
+.server-config/.salon-session-secret

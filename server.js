@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import fs from "fs";
 import path from "path";
+import crypto from "crypto";
 import { execFile } from "child_process";
 import { fileURLToPath } from "url";
 import { promisify } from "util";
@@ -18,6 +19,7 @@ const MODEL_NAME = process.env.NANO_BANANA_MODEL || "gemini-3.1-flash-image-prev
 const IMAGE_PROVIDER_LABEL = process.env.IMAGE_PROVIDER_LABEL || "Nano Banana";
 const DEFAULT_IMAGE_THINKING_LEVEL = "High";
 const generatedFolder = path.join(__dirname, "generated");
+const configFolder = path.join(__dirname, ".server-config");
 const logsFolder = path.join(__dirname, "logs");
 const modelsFolder = path.join(__dirname, "models");
 const scriptsFolder = path.join(__dirname, "scripts");
@@ -30,6 +32,8 @@ const appLogFile = path.join(logsFolder, "app.log");
 const imageGeneratorLogFile = path.join(logsFolder, "image-generator.log");
 const imageGeneratorErrorLogFile = path.join(logsFolder, "image-generator-errors.log");
 const generationMetricsFile = path.join(logsFolder, "generation-metrics.json");
+const salonAccessConfigFile = path.join(configFolder, "salon-access.json");
+const salonSessionSecretFile = path.join(configFolder, ".salon-session-secret");
 const stylesMetadataFile = path.join(stylesFolder, "hairstyles.json");
 const stylesDescriptionFile = path.join(stylesFolder, "hairstyles.txt");
 const faceGeometryManifestFile = path.join(faceGeometryFolder, "manifest.json");
@@ -40,6 +44,22 @@ const hairSegmenterModelUrl = "https://storage.googleapis.com/mediapipe-models/i
 const pythonCommand = process.env.PYTHON_BIN || "python";
 const execFileAsync = promisify(execFile);
 const IMAGE_GENERATION_MAX_ATTEMPTS = Math.max(1, Number(process.env.IMAGE_GENERATION_MAX_ATTEMPTS || 3));
+const SALON_SESSION_COOKIE_NAME = "salon_auth";
+const SALON_SESSION_DURATION_MS = 1000 * 60 * 60 * 12;
+const DEFAULT_SALON_ACCESS_CONFIG = {
+    salons: {
+        salon1: {
+            displayName: "Salon 1",
+            username: "Salon",
+            password: {
+                algorithm: "scrypt",
+                keyLength: 64,
+                salt: "b3920f679f99a5845c609e85c364b807",
+                hash: "69a88cf1c817d43b4c7204ed6365cef3b5222bc7003cd7a55b49a8a59d76074d1d9ef032d8c7cfd4baa24901ff647c6f5655e35751c1cb44956a0b6c03b1ea31"
+            }
+        }
+    }
+};
 
 const parseBooleanEnv = (value, defaultValue = false) => {
     if (value === undefined || value === null || value === "") {
@@ -79,11 +99,22 @@ const ensureDirectory = (folderPath) => {
 };
 
 ensureDirectory(generatedFolder);
+ensureDirectory(configFolder);
 ensureDirectory(logsFolder);
 ensureDirectory(modelsFolder);
 ensureDirectory(uploadsFolder);
 ensureDirectory(faceGeometryFolder);
 ensureDirectory(zoomedFolder);
+
+if (!fs.existsSync(salonAccessConfigFile)) {
+    fs.writeFileSync(salonAccessConfigFile, `${JSON.stringify(DEFAULT_SALON_ACCESS_CONFIG, null, 2)}\n`, "utf-8");
+}
+
+if (!fs.existsSync(salonSessionSecretFile)) {
+    fs.writeFileSync(salonSessionSecretFile, `${crypto.randomBytes(32).toString("hex")}\n`, "utf-8");
+}
+
+const SALON_SESSION_SECRET = fs.readFileSync(salonSessionSecretFile, "utf-8").trim();
 
 let hairSegmenterModelPromise = null;
 let cachedFaceGeometryManifestMtimeMs = -1;
@@ -725,6 +756,155 @@ const formatSalonName = (value) => {
         .replace(/\b\w/g, (character) => character.toUpperCase());
 };
 
+const readSalonAccessConfig = () => {
+    try {
+        const raw = fs.readFileSync(salonAccessConfigFile, "utf-8");
+        const parsed = JSON.parse(raw);
+        return parsed && typeof parsed === "object" ? parsed : { salons: {} };
+    } catch (_error) {
+        return { salons: {} };
+    }
+};
+
+const getSalonAccessRecord = (salonSlug) => {
+    const normalizedSalonSlug = sanitizeSalonSlug(salonSlug);
+    const config = readSalonAccessConfig();
+    const record = config?.salons?.[normalizedSalonSlug];
+
+    if (!record || typeof record !== "object") {
+        return null;
+    }
+
+    return {
+        displayName: String(record.displayName || formatSalonName(normalizedSalonSlug)),
+        username: String(record.username || ""),
+        password: {
+            algorithm: String(record.password?.algorithm || ""),
+            salt: String(record.password?.salt || ""),
+            hash: String(record.password?.hash || ""),
+            keyLength: Math.max(1, Number(record.password?.keyLength || 64))
+        }
+    };
+};
+
+const parseCookies = (cookieHeader = "") => {
+    return String(cookieHeader || "")
+        .split(";")
+        .map((segment) => segment.trim())
+        .filter(Boolean)
+        .reduce((cookies, segment) => {
+            const separatorIndex = segment.indexOf("=");
+
+            if (separatorIndex <= 0) {
+                return cookies;
+            }
+
+            const key = segment.slice(0, separatorIndex).trim();
+            const value = segment.slice(separatorIndex + 1).trim();
+            cookies[key] = decodeURIComponent(value);
+            return cookies;
+        }, {});
+};
+
+const signSalonSessionValue = (value) => crypto
+    .createHmac("sha256", SALON_SESSION_SECRET)
+    .update(value)
+    .digest("base64url");
+
+const createSalonSessionCookieValue = ({ salonSlug, username }) => {
+    const payload = {
+        salonSlug: sanitizeSalonSlug(salonSlug),
+        username: String(username || ""),
+        expiresAt: Date.now() + SALON_SESSION_DURATION_MS
+    };
+    const encodedPayload = Buffer.from(JSON.stringify(payload), "utf-8").toString("base64url");
+    const signature = signSalonSessionValue(encodedPayload);
+    return `${encodedPayload}.${signature}`;
+};
+
+const parseSalonSessionCookieValue = (value) => {
+    const [encodedPayload = "", signature = ""] = String(value || "").split(".");
+
+    if (!encodedPayload || !signature) {
+        return null;
+    }
+
+    const expectedSignature = signSalonSessionValue(encodedPayload);
+    const providedBuffer = Buffer.from(signature, "utf-8");
+    const expectedBuffer = Buffer.from(expectedSignature, "utf-8");
+
+    if (providedBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(providedBuffer, expectedBuffer)) {
+        return null;
+    }
+
+    try {
+        const payload = JSON.parse(Buffer.from(encodedPayload, "base64url").toString("utf-8"));
+
+        if (!payload || payload.expiresAt <= Date.now()) {
+            return null;
+        }
+
+        return {
+            salonSlug: sanitizeSalonSlug(payload.salonSlug),
+            username: String(payload.username || "")
+        };
+    } catch (_error) {
+        return null;
+    }
+};
+
+const getAuthenticatedSalonSession = (req, salonSlug) => {
+    const cookies = parseCookies(req.headers.cookie || "");
+    const session = parseSalonSessionCookieValue(cookies[SALON_SESSION_COOKIE_NAME] || "");
+
+    if (!session) {
+        return null;
+    }
+
+    if (salonSlug && session.salonSlug !== sanitizeSalonSlug(salonSlug)) {
+        return null;
+    }
+
+    return session;
+};
+
+const writeCookie = (res, name, value, {
+    maxAgeMs = SALON_SESSION_DURATION_MS,
+    expiresAt = null
+} = {}) => {
+    const directives = [
+        `${name}=${encodeURIComponent(value)}`,
+        "Path=/",
+        "HttpOnly",
+        "SameSite=Lax",
+        `Max-Age=${Math.max(0, Math.floor(maxAgeMs / 1000))}`
+    ];
+
+    if (expiresAt instanceof Date) {
+        directives.push(`Expires=${expiresAt.toUTCString()}`);
+    }
+
+    res.append("Set-Cookie", directives.join("; "));
+};
+
+const clearCookie = (res, name) => {
+    writeCookie(res, name, "", {
+        maxAgeMs: 0,
+        expiresAt: new Date(0)
+    });
+};
+
+const verifySalonPassword = (plainTextPassword, passwordRecord) => {
+    if (passwordRecord.algorithm !== "scrypt" || !passwordRecord.salt || !passwordRecord.hash) {
+        return false;
+    }
+
+    const expectedHash = Buffer.from(passwordRecord.hash, "hex");
+    const derivedHash = crypto.scryptSync(String(plainTextPassword || ""), passwordRecord.salt, passwordRecord.keyLength);
+
+    return expectedHash.length === derivedHash.length && crypto.timingSafeEqual(expectedHash, derivedHash);
+};
+
 const getMimeTypeFromFilename = (filename) => {
     const extension = path.extname(filename || "").toLowerCase();
 
@@ -1089,13 +1269,13 @@ const buildTemplateEditPrompt = ({ extraPrompt }) => {
     const normalizedExtraPrompt = String(extraPrompt || "").trim();
 
     return [
-        "Compose a professional hair integration using Image 1 as the primary subject and Image 2 as the hairstyle reference.",
-        "Maintain the facial geometry and identity of the subject in Image 1 entirely.",
-        "Adapt the hairstyle from Image 2 to match the head orientation and perspective of Image 1.",
-        "Blending must occur naturally at the hairline and temples, with strands appearing to emerge from the scalp.",
-        "Apply the lighting direction, color temperature, and depth of field from Image 1 to the new hair.",
-        "Ensure soft contact shadows are cast onto the forehead and neck.",
-        "Final output should be a sharp, high-resolution salon-quality render with realistic hair texture.",
+        "Compose a detailed professional hair integration.",
+        "The primary subject is the person from Image 1, re-posed to a direct, front-facing orientation with a white background and good lightning.",
+        "Perfect likeness and facial geometry of the subject in Image 1 must be preserved in this new perspective.",
+        "Re-create the complete hairstyle from Image 2 and integrate it seamlessly onto this front-facing head.",
+        "Focus on natural blending at the front hairline and temples, with strands appearing to emerge authentically from the scalp.",
+        "Adapt the lighting character, direction and color temperature, from Image 1 to this new front-facing composition.",
+        "The final output must be a sharp, high-resolution salon-quality render with extremely realistic hair texture.",
         normalizedExtraPrompt ? `Additional styling note: ${normalizedExtraPrompt}` : ""
     ].filter(Boolean).join(" ");
 };
@@ -1119,64 +1299,43 @@ const buildRearViewPrompt = ({ lookName, lookDescription, angleLabel }) => {
 };
 
 const buildPromptVariationPrompt = ({
-    lookName,
-    lookDescription,
     extraPrompt,
     hairColorHex,
     hairColorLabel,
     hasHairColorReference,
-    hairColorReferenceKind = "",
     isHairColorOnlyPrompt = false
 }) => {
     if (isHairColorOnlyPrompt) {
         return extraPrompt;
     }
 
-    if (hasHairColorReference && hairColorReferenceKind === "portrait") {
-        return [
-            buildPrecisionHairSwapPrompt({
-                specificHairDescription: extraPrompt
-            }),
-            hairColorLabel ? `Requested hair color name: ${hairColorLabel}.` : "",
-            hairColorHex ? `Requested hair color value: ${hairColorHex}.` : ""
-        ].filter(Boolean).join(" ");
-    }
-
     return [
-        "Edit image 1 only.", !hasHairColorReference ?
-        "Keep the same person and background in image 1. Only refine the hair realistically so it fits well." :
-        "",
-        hasHairColorReference && hairColorReferenceKind !== "portrait" ?
-        "Match only the hair color in image 1 to image 2 and keep everything else in image 1 the same." :
-        "",
+        "Use image 1 as the reference image.",
+        "Edit image 2 only.",
+        "Keep the client consistent with image 1.",
+        hasHairColorReference ? "Use image 3 only for the target hair color." : "",
         naturalLightingInstruction,
-        hairColorLabel ? `Requested hair color name: ${hairColorLabel}.` : "",
-        hairColorHex ? `Requested hair color value: ${hairColorHex}.` : "",
-        extraPrompt ? `Additional prompt: ${extraPrompt}` : ""
+        hairColorLabel ? `Target color: ${hairColorLabel}.` : "",
+        !hairColorLabel && hairColorHex ? `Target color: ${hairColorHex}.` : "",
+        extraPrompt || ""
     ].filter(Boolean).join(" ");
 };
 
 const buildHairColorOnlyPrompt = ({
     hairColorHex,
     hairColorLabel,
-    hasHairColorReference,
-    hairColorReferenceKind = ""
+    hasHairColorReference
 }) => {
-    if (hasHairColorReference) {
-        return [
-            "Edit image 1 only. Match only the hair color in image 2 to image 1 and keep everything else in image 1 the same.",
-            "Same person and same hairstyle as the original image 1, only the hair color is changed.",
-            naturalLightingInstruction
-        ].join(" ");
-    }
-
     return [
-        "Change the subject's hair color to the requested color.",
-        "Keep everything else in image 1 the same, including the person, hairstyle shape, and background.",
+        "Use image 1 as the reference image.",
+        "Edit image 2 only.",
+        hasHairColorReference ?
+            "Change only the hair color in image 2 to match image 3." :
+            "Change only the hair color in image 2 to the requested color.",
+        "Keep everything else in image 2 the same.",
         naturalLightingInstruction,
-        "Make it realistic and fitting well important!",
-        hairColorLabel ? `Requested hair color name: ${hairColorLabel}.` : "",
-        hairColorHex ? `Requested hair color value: ${hairColorHex}.` : ""
+        hairColorLabel ? `Target color: ${hairColorLabel}.` : "",
+        !hairColorLabel && hairColorHex ? `Target color: ${hairColorHex}.` : ""
     ].filter(Boolean).join(" ");
 };
 
@@ -2225,6 +2384,59 @@ app.get("/api/styles", (_req, res) => {
     });
 });
 
+app.post("/api/salons/:salonSlug/login", (req, res) => {
+    const normalizedSalonSlug = sanitizeSalonSlug(req.params.salonSlug);
+    const salonAccessRecord = getSalonAccessRecord(normalizedSalonSlug);
+
+    if (!salonAccessRecord) {
+        return res.status(404).json({ error: "Salon access is not configured for this location." });
+    }
+
+    const { username, password } = req.body || {};
+    const normalizedUsername = String(username || "").trim();
+    const normalizedPassword = String(password || "");
+
+    if (!normalizedUsername || !normalizedPassword) {
+        return res.status(400).json({ error: "Enter both the username and password." });
+    }
+
+    const isUsernameMatch = normalizedUsername === salonAccessRecord.username;
+    const isPasswordMatch = verifySalonPassword(normalizedPassword, salonAccessRecord.password);
+
+    if (!isUsernameMatch || !isPasswordMatch) {
+        writeAppLog({
+            level: "WARN",
+            category: "salon-auth",
+            message: "Rejected a salon login attempt.",
+            data: {
+                salonSlug: normalizedSalonSlug,
+                username: normalizedUsername
+            }
+        });
+        return res.status(401).json({ error: "That username or password did not match." });
+    }
+
+    writeCookie(
+        res,
+        SALON_SESSION_COOKIE_NAME,
+        createSalonSessionCookieValue({
+            salonSlug: normalizedSalonSlug,
+            username: normalizedUsername
+        })
+    );
+
+    res.json({
+        ok: true,
+        salonSlug: normalizedSalonSlug,
+        salonName: salonAccessRecord.displayName
+    });
+});
+
+app.post("/api/salons/:salonSlug/logout", (req, res) => {
+    clearCookie(res, SALON_SESSION_COOKIE_NAME);
+    res.json({ ok: true });
+});
+
 app.get("/api/salons/:salonSlug/photos/latest", (req, res) => {
     const photo = getLatestSalonPhoto(req.params.salonSlug);
 
@@ -2521,6 +2733,8 @@ app.post("/api/generated-hairstyle-variation", async(req, res) => {
     try {
         const {
             imageBase64,
+            referenceImageBase64,
+            modifierImageBase64,
             lookName,
             lookDescription,
             extraPrompt,
@@ -2531,6 +2745,8 @@ app.post("/api/generated-hairstyle-variation", async(req, res) => {
             hairColorReferenceKind,
             hairColorSwatchBase64
         } = req.body || {};
+        const normalizedReferenceImageBase64 = String(referenceImageBase64 || imageBase64 || "").trim();
+        const normalizedModifierImageBase64 = String(modifierImageBase64 || imageBase64 || "").trim();
         const normalizedExtraPrompt = String(extraPrompt || "").trim();
         const normalizedHairColorHex = String(hairColorHex || "").trim();
         const normalizedHairColorLabel = String(hairColorLabel || "").trim();
@@ -2546,8 +2762,12 @@ app.post("/api/generated-hairstyle-variation", async(req, res) => {
         const preferredHairColorReferenceImageBase64 = blurredHairColorReferenceImageBase64 || normalizedHairColorReferenceImageBase64;
         const isUsingBlurredHairColorReferenceByDefault = Boolean(blurredHairColorReferenceImageBase64);
 
-        if (!imageBase64) {
+        if (!normalizedReferenceImageBase64) {
             return res.status(400).json({ error: "Please choose an image first." });
+        }
+
+        if (!normalizedModifierImageBase64) {
+            return res.status(400).json({ error: "Please choose a generated hairstyle result before continuing." });
         }
 
         if (!lookName) {
@@ -2558,40 +2778,39 @@ app.post("/api/generated-hairstyle-variation", async(req, res) => {
             return res.status(400).json({ error: "Add an extra prompt or choose a hair color before generating a variation." });
         }
 
-        const runVariationAttempt = async(referenceImageDataUrl, referenceKind) => {
+        const runVariationAttempt = async(hairColorReferenceImageDataUrl, referenceKind) => {
             const isHairColorOnlyPrompt = !normalizedExtraPrompt && Boolean(
                 normalizedHairColorHex ||
                 normalizedHairColorLabel ||
-                referenceImageDataUrl
+                hairColorReferenceImageDataUrl
             );
             const hasHairColorRequest = Boolean(
                 normalizedHairColorHex ||
                 normalizedHairColorLabel ||
-                referenceImageDataUrl
+                hairColorReferenceImageDataUrl
             );
             const effectiveExtraPrompt = normalizedExtraPrompt || buildHairColorOnlyPrompt({
                 hairColorHex: normalizedHairColorHex,
                 hairColorLabel: normalizedHairColorLabel,
-                hasHairColorReference: Boolean(referenceImageDataUrl),
-                hairColorReferenceKind: referenceKind
+                hasHairColorReference: Boolean(hairColorReferenceImageDataUrl)
             });
             const finalPrompt = buildPromptVariationPrompt({
-                lookName,
-                lookDescription,
                 extraPrompt: effectiveExtraPrompt,
                 hairColorHex: normalizedHairColorHex,
                 hairColorLabel: normalizedHairColorLabel,
-                hasHairColorReference: Boolean(referenceImageDataUrl),
-                hairColorReferenceKind: referenceKind,
+                hasHairColorReference: Boolean(hairColorReferenceImageDataUrl),
                 isHairColorOnlyPrompt
             });
             const result = await generateImageVariation({
-                imageBase64,
+                imageBase64: normalizedReferenceImageBase64,
                 prompt: finalPrompt,
                 savePrefix: `${normalizeStyleKey(lookName)}-variation`,
-                referenceImageDataUrls: referenceImageDataUrl ? [referenceImageDataUrl] : [],
-                referenceFilename: referenceKind === "portrait" ? normalizedHairColorReferenceFilename : "",
-                useFacialFit: referenceKind === "portrait",
+                referenceImageDataUrls: [
+                    normalizedModifierImageBase64,
+                    hairColorReferenceImageDataUrl
+                ].filter(Boolean),
+                referenceFilename: "",
+                useFacialFit: false,
                 useTwoPassRefinement: !hasHairColorRequest
             });
 
@@ -2733,6 +2952,20 @@ app.use("/uploads", express.static(uploadsFolder));
 
 app.get("/:salonSlug/takeimage", (_req, res) => {
     res.sendFile(path.join(__dirname, "takeimage.html"));
+});
+
+app.get("/:salonSlug", (req, res) => {
+    const normalizedSalonSlug = sanitizeSalonSlug(req.params.salonSlug);
+
+    if (!getSalonAccessRecord(normalizedSalonSlug)) {
+        return res.status(404).send("Salon access is not configured for this location.");
+    }
+
+    if (getAuthenticatedSalonSession(req, normalizedSalonSlug)) {
+        return res.sendFile(path.join(__dirname, "index.html"));
+    }
+
+    return res.sendFile(path.join(__dirname, "salon-login.html"));
 });
 
 app.use((_req, res) => {

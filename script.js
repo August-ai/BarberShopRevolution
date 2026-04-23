@@ -2146,7 +2146,8 @@ const requestGeneratedHairstyleViews = async ({ imageBase64, lookName, lookDescr
 };
 
 const requestGeneratedHairstyleVariation = async ({
-  imageBase64,
+  referenceImageBase64,
+  modifierImageBase64,
   lookName,
   lookDescription,
   extraPrompt,
@@ -2156,13 +2157,15 @@ const requestGeneratedHairstyleVariation = async ({
   hairColorReferenceFilename = "",
   hairColorReferenceKind = "",
   hairColorSwatchBase64 = "",
-  sourceImagePath = ""
+  referenceImagePath = "",
+  modifierImagePath = ""
 }) => {
   const payload = await requestGenerationJson({
     endpoint: "/api/generated-hairstyle-variation",
     requestName: "generated-hairstyle-variation",
     requestBody: {
-      imageBase64,
+      referenceImageBase64,
+      modifierImageBase64,
       lookName,
       lookDescription,
       extraPrompt,
@@ -2174,8 +2177,9 @@ const requestGeneratedHairstyleVariation = async ({
       hairColorSwatchBase64
     },
     inputSummary: {
-      sourceImagePath,
-      referenceImagePath: getHairColorReferenceConsolePath({
+      referenceImagePath,
+      modifierImagePath,
+      hairColorReferencePath: getHairColorReferenceConsolePath({
         hairColorReferenceKind,
         hairColorReferenceFilename,
         hairColorHex
@@ -2317,18 +2321,19 @@ const handleGeneratePromptVariation = async () => {
     title: "Generating Prompt Variation",
     text: hairColorHex && !extraPrompt
       ? isCommonHairColor(hairColorHex)
-        ? "The selected result, color label, and reference photo are being used to create the new variation."
-        : "The selected result and your custom color swatch are being used to create the new variation."
+        ? "Your original photo, the selected result, and the color reference are being used to create the new variation."
+        : "Your original photo, the selected result, and your custom color swatch are being used to create the new variation."
       : hairColorHex
         ? isCommonHairColor(hairColorHex)
-          ? "The selected result, color label, and reference photo are being used to create the new variation."
-          : "The selected result and your custom color swatch are being used to create the new variation."
-        : "The selected result is being used to create your new variation."
+          ? "Your original photo, the selected result, and the color reference are being used to create the new variation."
+          : "Your original photo, the selected result, and your custom color swatch are being used to create the new variation."
+        : "Your original photo and the selected result are being used to create your new variation."
   });
   let requestCompleted = false;
 
   try {
-    const imageBase64 = await getImageDataUrlFromUrl(resultReference.imageUrl);
+    const referenceImageBase64 = await getSelectedImageDataUrl();
+    const modifierImageBase64 = await getImageDataUrlFromUrl(resultReference.imageUrl);
     const hairColorSwatchBase64 = hairColorHex ? createHairColorSwatchDataUrl(hairColorHex) : "";
     const {
       hairColorLabel,
@@ -2355,10 +2360,12 @@ const handleGeneratePromptVariation = async () => {
     }
 
     const result = await requestGeneratedHairstyleVariation({
-      imageBase64,
+      referenceImageBase64,
+      modifierImageBase64,
       lookName: resultReference.name,
       lookDescription: getResultDescription(resultReference),
-      sourceImagePath: getResultConsolePath(resultReference),
+      referenceImagePath: getSelectedImageConsolePath(),
+      modifierImagePath: getResultConsolePath(resultReference),
       extraPrompt,
       hairColorHex,
       hairColorLabel,
@@ -2631,6 +2638,12 @@ const handleTemplateNext = () => {
     : `Added ${selectedTemplates.length} selected template look${selectedTemplates.length === 1 ? "" : "s"} to the queue. ${formatTemplateBatchCount(templateGenerationQueue.length)} waiting.`);
 
   processTemplateGenerationQueue();
+
+  if (hasExistingResults) {
+    scrollToResultBatch(batchAnchor || cards[0]);
+  } else {
+    scrollToGenerationPanel();
+  }
 };
 
 captureButton.addEventListener("click", openCameraPicker);

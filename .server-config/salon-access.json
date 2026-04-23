@@ -1,0 +1,14 @@
+{
+  "salons": {
+    "salon1": {
+      "displayName": "Salon 1",
+      "username": "Salon",
+      "password": {
+        "algorithm": "scrypt",
+        "keyLength": 64,
+        "salt": "b3920f679f99a5845c609e85c364b807",
+        "hash": "69a88cf1c817d43b4c7204ed6365cef3b5222bc7003cd7a55b49a8a59d76074d1d9ef032d8c7cfd4baa24901ff647c6f5655e35751c1cb44956a0b6c03b1ea31"
+      }
+    }
+  }
+}

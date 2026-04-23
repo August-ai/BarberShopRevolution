@@ -3,19 +3,11 @@ const openUploadButton = document.getElementById("openUploadButton");
 const capturePhotoInput = document.getElementById("capturePhotoInput");
 const uploadPhotoInput = document.getElementById("uploadPhotoInput");
 const previewStep = document.getElementById("previewStep");
-const successStep = document.getElementById("successStep");
 const captureStage = document.getElementById("captureStage");
 const capturePreviewImage = document.getElementById("capturePreviewImage");
-const savedPreviewImage = document.getElementById("savedPreviewImage");
 const retakeCaptureButton = document.getElementById("retakeCaptureButton");
-const uploadCaptureButton = document.getElementById("uploadCaptureButton");
-const captureAnotherButton = document.getElementById("captureAnotherButton");
 const captureStatusMessage = document.getElementById("captureStatusMessage");
 const salonNameHeading = document.getElementById("salonNameHeading");
-const savedSalonName = document.getElementById("savedSalonName");
-const savedPhotoId = document.getElementById("savedPhotoId");
-const savedTimestamp = document.getElementById("savedTimestamp");
-const viewSavedPhotoLink = document.getElementById("viewSavedPhotoLink");
 const continueToSalonButton = document.getElementById("continueToSalonButton");
 
 const API_BASE_URL = window.location.protocol === "file:" ? "http://localhost:3013" : window.location.origin;
@@ -32,6 +24,7 @@ const IMAGE_TRANSFER_MIME_TYPE = "image/jpeg";
 let previewUrl = "";
 let isUploading = false;
 let lastCaptureSource = "camera";
+let selectedCaptureFile = null;
 
 const setStatus = (message) => {
   captureStatusMessage.textContent = message;
@@ -42,8 +35,6 @@ const setBusyState = (busy) => {
   openCameraButton.disabled = busy;
   openUploadButton.disabled = busy;
   retakeCaptureButton.disabled = busy;
-  uploadCaptureButton.disabled = busy;
-  captureAnotherButton.disabled = busy;
   continueToSalonButton.disabled = busy;
 };
 
@@ -97,13 +88,14 @@ const resetFlow = () => {
     return;
   }
 
+  selectedCaptureFile = null;
   resetPreviewUrl();
   capturePhotoInput.value = "";
   uploadPhotoInput.value = "";
   capturePreviewImage.removeAttribute("src");
-  savedPreviewImage.removeAttribute("src");
+  capturePreviewImage.hidden = true;
   previewStep.classList.add("is-hidden");
-  successStep.classList.add("is-hidden");
+  previewStep.hidden = true;
   captureStage.classList.remove("is-hidden");
   setStatus("");
 };
@@ -168,13 +160,15 @@ const optimizeImageBlobForTransfer = async (blob) => {
 };
 
 const showPreview = (file) => {
+  selectedCaptureFile = file;
   resetPreviewUrl();
   previewUrl = URL.createObjectURL(file);
   capturePreviewImage.src = previewUrl;
+  capturePreviewImage.hidden = false;
   captureStage.classList.add("is-hidden");
-  successStep.classList.add("is-hidden");
   previewStep.classList.remove("is-hidden");
-  setStatus(`Ready to save ${file.name} for ${salonLabel}.`);
+  previewStep.hidden = false;
+  setStatus("");
 };
 
 const redirectToSalonHomepage = () => {
@@ -182,15 +176,15 @@ const redirectToSalonHomepage = () => {
 };
 
 const handleUpload = async () => {
-  const [selectedFile] = capturePhotoInput.files;
+  const selectedFile = selectedCaptureFile;
 
   if (!selectedFile) {
-    setStatus("Take a picture before saving.");
+    setStatus("Choose an image first.");
     return;
   }
 
   setBusyState(true);
-  setStatus("Uploading photo...");
+  setStatus("");
 
   try {
     const imageBase64 = await optimizeImageBlobForTransfer(selectedFile);
@@ -212,18 +206,8 @@ const handleUpload = async () => {
     }
 
     const { photo } = payload;
-    const imageUrl = new URL(photo.imageUrl, window.location.origin).href;
-
-    savedPreviewImage.src = imageUrl;
-    savedSalonName.textContent = photo.salonName;
-    savedPhotoId.textContent = photo.id;
-    savedTimestamp.textContent = new Date(photo.storedAt).toLocaleString();
-    viewSavedPhotoLink.href = imageUrl;
-    captureStage.classList.add("is-hidden");
-    previewStep.classList.add("is-hidden");
-    successStep.classList.remove("is-hidden");
     sessionStorage.setItem(CAPTURED_PHOTO_STORAGE_KEY, JSON.stringify(photo));
-    setStatus(`Photo saved for ${photo.salonName}. Continue when you're ready.`);
+    redirectToSalonHomepage();
   } catch (error) {
     setStatus(error.message);
   } finally {
@@ -232,7 +216,6 @@ const handleUpload = async () => {
 };
 
 salonNameHeading.textContent = salonLabel;
-savedSalonName.textContent = salonLabel;
 
 openCameraButton.addEventListener("click", openCameraPicker);
 openUploadButton.addEventListener("click", openUploadPicker);
@@ -244,12 +227,7 @@ retakeCaptureButton.addEventListener("click", () => {
   resetFlow();
   reopenLastCapturePicker();
 });
-uploadCaptureButton.addEventListener("click", handleUpload);
-continueToSalonButton.addEventListener("click", redirectToSalonHomepage);
-captureAnotherButton.addEventListener("click", () => {
-  resetFlow();
-  reopenLastCapturePicker();
-});
+continueToSalonButton.addEventListener("click", handleUpload);
 
 const handleSelectedCaptureFile = (selectedFile, source = "camera") => {
   if (!selectedFile) {

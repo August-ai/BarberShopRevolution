@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Salon Sign In</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body class="capture-page salon-login-page">
+  <main class="capture-page-shell">
+    <section class="capture-card salon-login-card">
+      <p class="capture-kicker">Salon Access</p>
+      <h1 class="capture-title"><span id="salonLoginHeading">Salon</span> Sign In</h1>
+      <p class="capture-copy">
+        Enter the salon credentials to open this workspace and review the photos captured for this location.
+      </p>
+
+      <form class="salon-login-form" id="salonLoginForm">
+        <label class="prompt-field" for="salonUsernameInput">
+          <span class="prompt-label">Username</span>
+          <input class="prompt-input salon-login-input" id="salonUsernameInput" name="username" type="text" autocomplete="username" required>
+        </label>
+
+        <label class="prompt-field" for="salonPasswordInput">
+          <span class="prompt-label">Password</span>
+          <input class="prompt-input salon-login-input" id="salonPasswordInput" name="password" type="password" autocomplete="current-password" required>
+        </label>
+
+        <div class="action-row salon-login-actions">
+          <button class="capture-button" id="salonLoginButton" type="submit">Sign In</button>
+          <a class="secondary-button salon-login-link" id="takeImageLink" href="#">Take or Upload Photo</a>
+        </div>
+      </form>
+
+      <p class="status-message" id="salonLoginStatus" aria-live="polite"></p>
+    </section>
+  </main>
+
+  <script src="/salon-login.js"></script>
+</body>
+</html>
