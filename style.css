@@ -35,6 +35,10 @@ body.capture-page {
     linear-gradient(180deg, #ffffff 0%, #f2f1ec 100%);
 }
 
+body.capture-preview-open {
+  overflow: hidden;
+}
+
 .page-shell {
   min-height: 100vh;
   display: grid;
@@ -49,8 +53,8 @@ body.capture-page {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 28px;
-  padding: 40px 28px;
+  gap: 38px;
+  padding: 52px 32px;
   border: 1px solid var(--surface-border);
   border-radius: 32px;
   background: var(--surface);
@@ -73,6 +77,11 @@ body.capture-page {
 .option-panel,
 .template-panel {
   width: 100%;
+}
+
+.step-panel {
+  display: grid;
+  gap: 24px;
 }
 
 .hero-kicker {
@@ -158,6 +167,132 @@ body.capture-page {
   gap: 20px;
 }
 
+.received-photos-panel {
+  display: grid;
+  gap: 20px;
+  margin-top: 0;
+  padding-top: 28px;
+  border-top: 1px solid rgba(17, 17, 17, 0.08);
+  text-align: left;
+}
+
+.received-photos-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.received-photos-helper {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.received-photos-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.received-photo-card,
+.received-photo-empty {
+  border-radius: 24px;
+  border: 1px solid rgba(17, 17, 17, 0.08);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 12px 28px rgba(17, 17, 17, 0.06);
+}
+
+.received-photo-card {
+  appearance: none;
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.received-photo-card:hover,
+.received-photo-card:focus-visible {
+  transform: translateY(-2px);
+  border-color: rgba(17, 17, 17, 0.2);
+  box-shadow: 0 18px 34px rgba(17, 17, 17, 0.08);
+  outline: none;
+}
+
+.received-photo-media {
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  border-radius: 18px;
+  background: #f5f4ee;
+}
+
+.received-photo-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.received-photo-body {
+  display: grid;
+  gap: 6px;
+}
+
+.received-photo-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.received-photo-title {
+  margin: 0;
+  font-size: 0.96rem;
+  line-height: 1.3;
+}
+
+.received-photo-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(17, 17, 17, 0.08);
+  color: var(--text-primary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.received-photo-meta {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.received-photo-empty {
+  display: grid;
+  place-items: center;
+  min-height: 148px;
+  padding: 20px;
+}
+
+.received-photo-empty p {
+  margin: 0;
+  max-width: 26ch;
+  color: var(--text-secondary);
+  font-size: 0.92rem;
+  line-height: 1.55;
+  text-align: center;
+}
+
 .photo-preview {
   width: 100%;
   max-height: 340px;
@@ -171,7 +306,7 @@ body.capture-page {
 .action-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: 16px;
 }
 
 .button-icon {
@@ -190,12 +325,21 @@ body.capture-page {
 
 .option-panel {
   display: grid;
-  gap: 14px;
+  gap: 20px;
+}
+
+.panel-topbar {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.panel-back-button {
+  min-width: 112px;
 }
 
 .template-panel {
   display: grid;
-  gap: 18px;
+  gap: 24px;
   text-align: left;
   padding-bottom: clamp(88px, 10vw, 120px);
 }
@@ -204,7 +348,10 @@ body.capture-page {
   position: sticky;
   top: 12px;
   z-index: 5;
-  display: grid;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
@@ -1427,8 +1574,9 @@ body.capture-page {
   display: none;
 }
 
-.is-hidden {
-  display: none;
+.is-hidden,
+[hidden] {
+  display: none !important;
 }
 
 .status-message {
@@ -1491,7 +1639,6 @@ body.capture-page {
 
 .capture-header,
 .capture-stage,
-.capture-preview-panel,
 .capture-success-panel,
 .status-message {
   position: relative;
@@ -1544,7 +1691,6 @@ body.capture-page {
 }
 
 .capture-stage,
-.capture-preview-panel,
 .capture-success-panel {
   display: grid;
   gap: 18px;
@@ -1575,14 +1721,6 @@ body.capture-page {
 
 .capture-card .action-row {
   width: min(100%, 460px);
-  justify-self: center;
-}
-
-.capture-preview-actions {
-  width: min(100%, 460px);
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
   justify-self: center;
 }
 
@@ -1645,12 +1783,88 @@ body.capture-page {
 
 .capture-preview-image {
   width: 100%;
-  max-height: 520px;
+  max-height: min(68vh, 720px);
   object-fit: contain;
   border-radius: 26px;
-  border: 1px solid rgba(17, 17, 17, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   background: #f7f6f1;
-  box-shadow: 0 18px 36px rgba(17, 17, 17, 0.08);
+  box-shadow: 0 26px 52px rgba(0, 0, 0, 0.32);
+}
+
+.capture-preview-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  display: grid;
+  place-items: center;
+  padding: clamp(16px, 4vw, 32px);
+  background: rgba(0, 0, 0, 0.86);
+  backdrop-filter: blur(10px);
+}
+
+.capture-preview-dialog {
+  position: relative;
+  width: min(100%, 760px);
+  display: grid;
+  gap: 18px;
+  padding: clamp(18px, 3vw, 24px);
+  border-radius: 32px;
+  background: linear-gradient(180deg, rgba(32, 32, 32, 0.94) 0%, rgba(18, 18, 18, 0.96) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 36px 80px rgba(0, 0, 0, 0.45);
+}
+
+.capture-preview-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  font: inherit;
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform 180ms ease, background-color 180ms ease, border-color 180ms ease;
+}
+
+.capture-preview-close:hover,
+.capture-preview-close:focus-visible {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.26);
+  outline: none;
+}
+
+.capture-preview-close:active {
+  transform: translateY(0);
+}
+
+.capture-preview-actions {
+  width: min(100%, 460px);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  justify-self: center;
+}
+
+.capture-preview-status {
+  min-height: 1.5em;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.capture-preview-status:empty {
+  display: none;
 }
 
 .capture-success-image {
@@ -1671,6 +1885,30 @@ body.capture-page {
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
+}
+
+.capture-success-title,
+.capture-success-copy {
+  margin: 0;
+  justify-self: center;
+}
+
+.capture-success-title {
+  max-width: 14ch;
+  font-size: clamp(2rem, 5vw, 3rem);
+  line-height: 0.95;
+  letter-spacing: -0.05em;
+}
+
+.capture-success-copy {
+  max-width: 30ch;
+  color: var(--text-secondary);
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.capture-success-actions {
+  margin-top: 8px;
 }
 
 .capture-meta {
@@ -1713,6 +1951,10 @@ body.capture-page {
   }
 
   .action-row {
+    grid-template-columns: 1fr;
+  }
+
+  .received-photos-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1835,6 +2077,35 @@ body.capture-page {
     align-content: center;
     padding: 32px 20px;
     border-radius: 28px;
+  }
+
+  .capture-preview-panel {
+    padding: 12px;
+  }
+
+  .capture-preview-dialog {
+    width: min(100%, 520px);
+    gap: 14px;
+    padding: 14px;
+    border-radius: 24px;
+  }
+
+  .capture-preview-close {
+    top: 10px;
+    right: 10px;
+    width: 40px;
+    height: 40px;
+    font-size: 1.4rem;
+  }
+
+  .capture-preview-image {
+    max-height: min(58vh, 520px);
+    border-radius: 18px;
+  }
+
+  .capture-preview-actions {
+    width: 100%;
+    grid-template-columns: 1fr;
   }
 }
 

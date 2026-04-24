@@ -18,7 +18,11 @@ const PORT = Number(process.env.PORT || 3013);
 const MODEL_NAME = process.env.NANO_BANANA_MODEL || "gemini-3.1-flash-image-preview";
 const IMAGE_PROVIDER_LABEL = process.env.IMAGE_PROVIDER_LABEL || "Nano Banana";
 const DEFAULT_IMAGE_THINKING_LEVEL = "High";
-const FAL_TEMPLATE_MODEL_ID = process.env.FAL_TEMPLATE_MODEL_ID || "fal-ai/gemini-3.1-flash-image-preview/edit";
+// fal's Gemini 3.1 Flash Image edit endpoint accepts `thinking_level`, using lowercase enum values.
+const FAL_IMAGE_THINKING_LEVEL = "high";
+const FAL_IMAGE_EDIT_DEFAULT_MODEL_ID = "fal-ai/gemini-3.1-flash-image-preview/edit";
+const FAL_TEMPLATE_MODEL_ID = process.env.FAL_TEMPLATE_MODEL_ID || FAL_IMAGE_EDIT_DEFAULT_MODEL_ID;
+const FAL_BACK_VIEW_MODEL_ID = process.env.FAL_BACK_VIEW_MODEL_ID || FAL_TEMPLATE_MODEL_ID;
 const FAL_TEMPLATE_RESOLUTION = process.env.FAL_TEMPLATE_RESOLUTION || "1K";
 const generatedFolder = path.join(__dirname, "generated");
 const configFolder = path.join(__dirname, ".server-config");
@@ -41,6 +45,7 @@ const stylesDescriptionFile = path.join(stylesFolder, "hairstyles.txt");
 const faceGeometryManifestFile = path.join(faceGeometryFolder, "manifest.json");
 const hairSegmenterModelPath = path.join(modelsFolder, "hair_segmenter.tflite");
 const hairSegmenterScriptPath = path.join(scriptsFolder, "segment_hair.py");
+const hairLengthAnalyzerScriptPath = path.join(scriptsFolder, "analyze_hair_length.py");
 const facialFitScriptPath = path.join(scriptsFolder, "facial_fit.py");
 const hairSegmenterModelUrl = "https://storage.googleapis.com/mediapipe-models/image_segmenter/hair_segmenter/float32/latest/hair_segmenter.tflite";
 const pythonCommand = process.env.PYTHON_BIN || "python";
@@ -48,6 +53,13 @@ const execFileAsync = promisify(execFile);
 const IMAGE_GENERATION_MAX_ATTEMPTS = Math.max(1, Number(process.env.IMAGE_GENERATION_MAX_ATTEMPTS || 3));
 const SALON_SESSION_COOKIE_NAME = "salon_auth";
 const SALON_SESSION_DURATION_MS = 1000 * 60 * 60 * 24 * 365 * 20;
+const SALON_RECENT_PHOTO_WINDOW_MS = 1000 * 60 * 60;
+const RANDOM_HAIRSTYLE_RESULT_COUNT = 5;
+const RANDOM_LENGTH_CATEGORY_TO_ALLOWED_LENGTHS = {
+    short: new Set(["jaw", "chin"]),
+    medium: new Set(["jaw", "chin", "shoulder", "collarbone"]),
+    long: new Set(["jaw", "chin", "shoulder", "collarbone", "long", "extra-long", "updo"])
+};
 const DEFAULT_SALON_ACCESS_CONFIG = {
     salons: {
         salon1: {
@@ -93,9 +105,10 @@ const FACIAL_FIT = parseBooleanEnv(
     process.env.FACIAL_FIT ?? process.env.FacialFit,
     false
 );
-// fal does not expose a separate thinkingLevel knob for this edit endpoint, so we use the
-// higher-reasoning Gemini 3 Pro Image edit model (Nano Banana Pro on fal) for template generation.
-const USE_FAL_TEMPLATE_GENERATION = parseBooleanEnv(process.env.USE_FAL_TEMPLATE_GENERATION, true);
+const FAL_AI_USED = parseBooleanEnv(
+    process.env.Fal_Ai_Used ?? process.env.FAL_AI_USED,
+    true
+);
 
 const ensureDirectory = (folderPath) => {
     if (!fs.existsSync(folderPath)) {
@@ -163,14 +176,19 @@ const getGoogleClient = () => {
     return new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 };
 
-const getFalTemplateApiKey = () => {
-    const apiKey = String(process.env.Fal_Ai_key || process.env.FAL_KEY || "").trim();
+const getFalApiKey = () => {
+    const apiKey = String(
+        process.env.Fal_Ai_Key ||
+        process.env.Fal_Ai_key ||
+        process.env.FAL_KEY ||
+        ""
+    ).trim();
 
     if (!apiKey) {
         throw createPublicError(
-            "Template generation is not available right now. Please try again later.",
+            "Image generation is not available right now. Please try again later.",
             503,
-            "Missing Fal_Ai_key or FAL_KEY environment variable for fal.ai template generation."
+            "Missing Fal_Ai_Key, Fal_Ai_key, or FAL_KEY environment variable for fal.ai image generation."
         );
     }
 
@@ -1151,11 +1169,15 @@ const listTemplateStyles = () => {
         return [];
     }
 
+    const excludedTemplateFilenames = new Set([
+        "redhair_shoulderhair.png"
+    ]);
     const metadata = loadStyleMetadata();
     const descriptions = loadStyleDescriptions();
 
     return fs.readdirSync(stylesFolder)
         .filter(isImageFile)
+        .filter((filename) => !excludedTemplateFilenames.has(filename.toLowerCase()))
         .sort((left, right) => left.localeCompare(right))
         .map((filename) => {
             const baseKey = normalizeStyleKey(filename);
@@ -1180,6 +1202,27 @@ const listTemplateStyles = () => {
 const getTemplateStyleByFilename = (filename) => {
     const catalog = listTemplateStyles();
     return catalog.find((style) => style.filename === filename) || null;
+};
+
+const shuffleItems = (items) => {
+    const shuffled = [...items];
+
+    for (let index = shuffled.length - 1; index > 0; index -= 1) {
+        const swapIndex = Math.floor(Math.random() * (index + 1));
+        [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+    }
+
+    return shuffled;
+};
+
+const getEligibleRandomTemplateStyles = ({ lengthCategory = "long", count = RANDOM_HAIRSTYLE_RESULT_COUNT }) => {
+    const allowedLengths = RANDOM_LENGTH_CATEGORY_TO_ALLOWED_LENGTHS[lengthCategory] || RANDOM_LENGTH_CATEGORY_TO_ALLOWED_LENGTHS.long;
+    const eligibleStyles = listTemplateStyles().filter((style) => {
+        const styleLength = String(style?.attributes?.length || "").trim().toLowerCase();
+        return styleLength && allowedLengths.has(styleLength);
+    });
+
+    return shuffleItems(eligibleStyles).slice(0, Math.max(1, count));
 };
 
 const getImageReferenceDataUrl = (folderPath, filename, notFoundMessage) => {
@@ -1242,18 +1285,12 @@ const buildTwoPassHairFitPrompt = () => [
     "Keep the exact same hairstyle, hair length, hair color, person, and background unchanged."
 ].join(" ");
 
-const buildHairstyleEditPrompt = ({ hairstyleName, hairstylePrompt }) => {
+const buildRandomReferenceTransferPrompt = () => {
     return [
-        "Use the uploaded portrait as the source image.",
-        "Keep the exact same person.",
-        "Preserve facial features, skin tone, expression, camera angle, pose, clothing, and background.",
-        "Only change the hairstyle.",
-        "The new hairstyle cannot have hair longer than in the current image provided.",
-        naturalLightingInstruction,
-        "Make it realistic and fitting well important!",
-        "Make the result photorealistic, flattering, and salon quality.",
-        `Target hairstyle name: ${hairstyleName}.`,
-        `Target hairstyle description: ${hairstylePrompt}`
+        "Transfer the hairstyle from Image 2 to Image 1.",
+        "Keep the person in Image 1 identical.",
+        "Make the result direct front-facing with a white background, butterfly studio lighting, and tack sharp focus.",
+        "Keep it natural and salon-quality."
     ].join(" ");
 };
 
@@ -1285,21 +1322,28 @@ const buildPrecisionHairSwapPrompt = ({ specificHairDescription = "" }) => {
 
 const buildTemplateEditPrompt = ({ extraPrompt }) => {
     const normalizedExtraPrompt = String(extraPrompt || "").trim();
+    const userPriorityPrompt = normalizedExtraPrompt ?
+        `Prompt From user, disregard any previous instructions if clash with the following: ${normalizedExtraPrompt}` :
+        "";
 
     return [
         "Compose a detailed professional hair integration.",
-        "The primary subject is the person from Image 1, re-posed to a direct, front-facing orientation with a white background and good lightning.",
+        "The primary subject is the person from Image 1, re-posed to a direct, front-facing orientation with a white background, butterfly studio lighting, and tack sharp focus.",
         "Perfect likeness and facial geometry of the subject in Image 1 must be preserved in this new perspective.",
         "Re-create the complete hairstyle from Image 2 and integrate it seamlessly onto this front-facing head.",
         "Focus on natural blending at the front hairline and temples, with strands appearing to emerge authentically from the scalp.",
         "Adapt the lighting character, direction and color temperature, from Image 1 to this new front-facing composition.",
         "The final output must be a sharp, high-resolution salon-quality render with extremely realistic hair texture.",
-        normalizedExtraPrompt ? `Additional styling note: ${normalizedExtraPrompt}` : ""
+        userPriorityPrompt
     ].filter(Boolean).join(" ");
 };
 
 const buildRearViewPrompt = ({ viewLabel, cameraAngle }) => {
     return `Give the ${viewLabel} view of image 2. Keep the original person identical to image 1 and keep the hair identical to image 2. Keep the background white. Do not change anything besides the angle of the camera to be at the ${cameraAngle}.`;
+};
+
+const buildHairColorReferencePrompt = () => {
+    return "Edit Image 1: Keep identity identical. Change the pose to direct front-facing. Replace hair with the style from Image 2. Apply the exact hair color from Image 3 to the new style. Butterfly studio lighting, tack sharp focus, white background. Ensure natural lighting and salon-quality blending.";
 };
 
 const buildPromptVariationPrompt = ({
@@ -1309,8 +1353,21 @@ const buildPromptVariationPrompt = ({
     hasHairColorReference,
     isHairColorOnlyPrompt = false
 }) => {
+    const hasHairColorRequest = Boolean(hairColorHex || hairColorLabel || hasHairColorReference);
+    const normalizedExtraPrompt = String(extraPrompt || "").trim();
+    const userPriorityPrompt = normalizedExtraPrompt ?
+        `Prompt From user, disregard any previous instructions if clash with the following: ${normalizedExtraPrompt}` :
+        "";
+
     if (isHairColorOnlyPrompt) {
         return extraPrompt;
+    }
+
+    if (hasHairColorRequest) {
+        return [
+            buildHairColorReferencePrompt(),
+            userPriorityPrompt
+        ].filter(Boolean).join(" ");
     }
 
     return [
@@ -1319,7 +1376,7 @@ const buildPromptVariationPrompt = ({
         "Keep the client consistent with image 1.",
         hasHairColorReference ? "Use image 3 only for the target hair color." : "",
         naturalLightingInstruction,
-        extraPrompt || ""
+        userPriorityPrompt
     ].filter(Boolean).join(" ");
 };
 
@@ -1328,20 +1385,7 @@ const buildHairColorOnlyPrompt = ({
     hairColorLabel,
     hasHairColorReference
 }) => {
-    return [
-        hasHairColorReference ?
-            "Edit image 1 to match image 2." :
-            "Edit image 1 to keep the same hairstyle and person.",
-        "Keep the original person from image 1 completely identical, including identity, facial features, expression, skin tone, and proportions.",
-        "Match the front-facing pose, white background, exact hairstyle shape, length, layering, density, texture, hairline, and placement from image 2.",
-        hasHairColorReference ?
-            "Use image 3 only for the hair color and apply it to the hairstyle from image 2." :
-            "Change only the hair color to the requested color.",
-        "Preserve realistic strand definition, depth, softness, and natural salon-quality blending.",
-        "Do not change anything else in image 1.",
-        naturalLightingInstruction,
-        "Image 1 is the only modified one here."
-    ].filter(Boolean).join(" ");
+    return buildHairColorReferencePrompt();
 };
 
 const getPromptVariationMetadata = ({
@@ -1875,26 +1919,35 @@ const fetchRemoteImageAsDataUrl = async(imageUrl) => {
     return `data:${mimeType};base64,${buffer.toString("base64")}`;
 };
 
-const createFalProviderError = (responseStatus, responseBody, prompt, savePrefix) => {
+const createFalProviderError = ({
+    responseStatus,
+    responseBody,
+    prompt,
+    savePrefix,
+    publicMessage = "We couldn't create this look right now.",
+    category = "fal-image-response-error",
+    failureLabel = "fal.ai image generation failed",
+    model = FAL_TEMPLATE_MODEL_ID
+}) => {
     const serializedBody = typeof responseBody === "string" ?
         responseBody.trim() :
         JSON.stringify(responseBody || {});
-    const internalMessage = `fal.ai template generation failed (${responseStatus}). ${serializedBody}`.trim();
+    const internalMessage = `${failureLabel} (${responseStatus}). ${serializedBody}`.trim();
     const error = createPublicError(
-        "We couldn't create this look right now.",
+        publicMessage,
         Number(responseStatus || 502),
         internalMessage
     );
     error.providerFailureSummary = serializedBody;
     writeImageGeneratorLog({
         level: "ERROR",
-        category: "fal-template-response-error",
-        message: "fal.ai template generation failed.",
+        category,
+        message: `${failureLabel}.`,
         data: {
             timestamp: new Date().toISOString(),
             requestLabel: savePrefix || "",
             provider: "fal.ai",
-            model: FAL_TEMPLATE_MODEL_ID,
+            model,
             prompt: String(prompt || ""),
             status: Number(responseStatus || 0),
             response: responseBody || ""
@@ -1903,30 +1956,43 @@ const createFalProviderError = (responseStatus, responseBody, prompt, savePrefix
     return error;
 };
 
-const generateTemplateImageWithFal = async({
+const generateImageWithFal = async({
     imageBase64,
     prompt,
     savePrefix,
     referenceImageDataUrl = "",
+    referenceImageDataUrls = [],
     referenceFilename = "",
-    useFacialFit = false
+    useFacialFit = false,
+    model = FAL_TEMPLATE_MODEL_ID,
+    publicErrorMessage = "We couldn't create this look right now.",
+    logCategory = "fal-image",
+    logMessageLabel = "image generation"
 }) => {
     assertImageDataUrl(imageBase64);
-    assertImageDataUrl(referenceImageDataUrl, "Please choose a valid template image and try again.");
+    const normalizedReferenceImages = [...referenceImageDataUrls];
+
+    if (referenceImageDataUrl) {
+        normalizedReferenceImages.unshift(referenceImageDataUrl);
+    }
+
+    normalizedReferenceImages.forEach((referenceImage) => {
+        assertImageDataUrl(referenceImage, "Please choose a valid reference image and try again.");
+    });
 
     if (TEST_MODE) {
         writeImageGeneratorLog({
             level: "WARN",
-            category: "fal-template-skipped",
-            message: "fal.ai template generation was skipped because TEST_MODE is enabled.",
+            category: `${logCategory}-skipped`,
+            message: `fal.ai ${logMessageLabel} was skipped because TEST_MODE is enabled.`,
             data: {
                 timestamp: new Date().toISOString(),
                 provider: "fal.ai",
-                model: FAL_TEMPLATE_MODEL_ID,
+                model,
                 requestLabel: savePrefix || "",
                 prompt: String(prompt || ""),
-                imageCount: 2,
-                images: summarizeImagePayloadsForLog([imageBase64, referenceImageDataUrl])
+                imageCount: 1 + normalizedReferenceImages.length,
+                images: summarizeImagePayloadsForLog([imageBase64, ...normalizedReferenceImages])
             }
         });
 
@@ -1937,15 +2003,15 @@ const generateTemplateImageWithFal = async({
         };
     }
 
-    const falApiKey = getFalTemplateApiKey();
+    const falApiKey = getFalApiKey();
     const requestStartedAt = Date.now();
     let effectiveImageBase64 = imageBase64;
 
-    if (FACIAL_FIT && useFacialFit && referenceImageDataUrl) {
+    if (FACIAL_FIT && useFacialFit && normalizedReferenceImages[0]) {
         try {
             const facialFitResult = await runFacialFit({
                 sourceImageBase64: imageBase64,
-                referenceImageDataUrl,
+                referenceImageDataUrl: normalizedReferenceImages[0],
                 referenceFilename,
                 savePrefix
             });
@@ -1954,14 +2020,14 @@ const generateTemplateImageWithFal = async({
             writeImageGeneratorLog({
                 level: "INFO",
                 category: "facial-fit",
-                message: "Applied Facial Fit to the source image before fal.ai template generation.",
+                message: `Applied Facial Fit to the source image before fal.ai ${logMessageLabel}.`,
                 data: facialFitResult.metadata
             });
         } catch (error) {
             writeAppLog({
                 level: "WARN",
                 category: "facial-fit",
-                message: "Facial Fit failed before fal.ai template generation. Falling back to the original source image.",
+                message: `Facial Fit failed before fal.ai ${logMessageLabel}. Falling back to the original source image.`,
                 data: {
                     requestLabel: savePrefix || "",
                     error: serializeErrorForLog(error)
@@ -1970,7 +2036,7 @@ const generateTemplateImageWithFal = async({
             writeImageGeneratorLog({
                 level: "WARN",
                 category: "facial-fit",
-                message: "Facial Fit failed before fal.ai template generation. Falling back to the original source image.",
+                message: `Facial Fit failed before fal.ai ${logMessageLabel}. Falling back to the original source image.`,
                 data: {
                     requestLabel: savePrefix || "",
                     error: serializeErrorForLog(error)
@@ -1981,104 +2047,199 @@ const generateTemplateImageWithFal = async({
 
     const requestPayload = {
         prompt,
-        image_urls: [effectiveImageBase64, referenceImageDataUrl],
+        image_urls: [effectiveImageBase64, ...normalizedReferenceImages],
         num_images: 1,
         aspect_ratio: "auto",
         output_format: "webp",
         safety_tolerance: "6",
         resolution: FAL_TEMPLATE_RESOLUTION,
+        thinking_level: FAL_IMAGE_THINKING_LEVEL,
         limit_generations: true,
         enable_web_search: false
     };
 
-    writeImageGeneratorLog({
-        level: "INFO",
-        category: "fal-template-request",
-        message: "Sending template generation request to fal.ai.",
-        data: {
-            timestamp: new Date().toISOString(),
-            provider: "fal.ai",
-            model: FAL_TEMPLATE_MODEL_ID,
-            requestLabel: savePrefix || "",
-            prompt: String(prompt || ""),
-            imageCount: 2,
-            images: summarizeImagePayloadsForLog([effectiveImageBase64, referenceImageDataUrl]),
-            input: {
-                num_images: requestPayload.num_images,
-                aspect_ratio: requestPayload.aspect_ratio,
-                output_format: requestPayload.output_format,
-                safety_tolerance: requestPayload.safety_tolerance,
-                resolution: requestPayload.resolution,
-                limit_generations: requestPayload.limit_generations,
-                enable_web_search: requestPayload.enable_web_search
+    let lastError = null;
+
+    for (let attemptNumber = 1; attemptNumber <= IMAGE_GENERATION_MAX_ATTEMPTS; attemptNumber += 1) {
+        writeImageGeneratorLog({
+            level: "INFO",
+            category: `${logCategory}-request`,
+            message: `Sending ${logMessageLabel} request to fal.ai.`,
+            data: {
+                timestamp: new Date().toISOString(),
+                provider: "fal.ai",
+                model,
+                requestLabel: savePrefix || "",
+                attemptNumber,
+                maxAttempts: IMAGE_GENERATION_MAX_ATTEMPTS,
+                prompt: String(prompt || ""),
+                imageCount: 1 + normalizedReferenceImages.length,
+                images: summarizeImagePayloadsForLog([effectiveImageBase64, ...normalizedReferenceImages]),
+                input: {
+                    num_images: requestPayload.num_images,
+                    aspect_ratio: requestPayload.aspect_ratio,
+                    output_format: requestPayload.output_format,
+                    safety_tolerance: requestPayload.safety_tolerance,
+                    resolution: requestPayload.resolution,
+                    thinking_level: requestPayload.thinking_level,
+                    limit_generations: requestPayload.limit_generations,
+                    enable_web_search: requestPayload.enable_web_search
+                }
             }
+        });
+
+        try {
+            const response = await fetch(`https://fal.run/${model}`, {
+                method: "POST",
+                headers: {
+                    "Authorization": `Key ${falApiKey}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(requestPayload)
+            });
+
+            const responseText = await response.text();
+            let responseBody = null;
+
+            try {
+                responseBody = responseText ? JSON.parse(responseText) : {};
+            } catch (_error) {
+                responseBody = responseText;
+            }
+
+            if (!response.ok) {
+                throw createFalProviderError({
+                    responseStatus: response.status,
+                    responseBody,
+                    prompt,
+                    savePrefix,
+                    publicMessage: publicErrorMessage,
+                    category: `${logCategory}-response-error`,
+                    failureLabel: `fal.ai ${logMessageLabel} failed`,
+                    model
+                });
+            }
+
+            const outputImageUrl = String(responseBody?.images?.[0]?.url || "").trim();
+
+            if (!outputImageUrl) {
+                throw createFalProviderError({
+                    responseStatus: 502,
+                    responseBody,
+                    prompt,
+                    savePrefix,
+                    publicMessage: publicErrorMessage,
+                    category: `${logCategory}-response-error`,
+                    failureLabel: `fal.ai ${logMessageLabel} failed`,
+                    model
+                });
+            }
+
+            const imageDataUrl = await fetchRemoteImageAsDataUrl(outputImageUrl);
+            const mimeType = getMimeTypeFromDataUrl(imageDataUrl);
+            const savedFile = writeGeneratedImage(getBase64Payload(imageDataUrl), mimeType, savePrefix);
+            const completedDurationMs = Date.now() - requestStartedAt;
+
+            writeImageGeneratorLog({
+                level: "INFO",
+                category: `${logCategory}-response`,
+                message: `Received ${logMessageLabel} response from fal.ai.`,
+                data: {
+                    timestamp: new Date().toISOString(),
+                    provider: "fal.ai",
+                    model,
+                    requestLabel: savePrefix || "",
+                    attemptNumber,
+                    maxAttempts: IMAGE_GENERATION_MAX_ATTEMPTS,
+                    durationMs: completedDurationMs,
+                    savedFile,
+                    outputUrl: outputImageUrl,
+                    description: String(responseBody?.description || "")
+                }
+            });
+
+            recordGenerationTiming({
+                requestLabel: savePrefix || "",
+                savePrefix,
+                durationMs: completedDurationMs,
+                attemptNumber,
+                referenceImageCount: normalizedReferenceImages.length,
+                savedFile
+            });
+
+            return {
+                imageUrl: imageDataUrl,
+                savedFile,
+                testMode: false
+            };
+        } catch (error) {
+            lastError = error;
+            const shouldRetry = attemptNumber < IMAGE_GENERATION_MAX_ATTEMPTS && shouldRetryImageGenerationRequest(error);
+
+            if (shouldRetry) {
+                writeAppLog({
+                    level: "WARN",
+                    category: `${logCategory}-retry`,
+                    message: `Retrying fal.ai ${logMessageLabel} after a failed attempt.`,
+                    data: {
+                        requestLabel: savePrefix || "",
+                        attemptNumber,
+                        maxAttempts: IMAGE_GENERATION_MAX_ATTEMPTS,
+                        error: serializeErrorForLog(error)
+                    }
+                });
+                writeImageGeneratorLog({
+                    level: "WARN",
+                    category: `${logCategory}-retry`,
+                    message: `Retrying fal.ai ${logMessageLabel} after a failed attempt.`,
+                    data: {
+                        requestLabel: savePrefix || "",
+                        attemptNumber,
+                        maxAttempts: IMAGE_GENERATION_MAX_ATTEMPTS,
+                        error: serializeErrorForLog(error)
+                    }
+                });
+                continue;
+            }
+
+            throw error;
         }
-    });
-
-    const response = await fetch(`https://fal.run/${FAL_TEMPLATE_MODEL_ID}`, {
-        method: "POST",
-        headers: {
-            "Authorization": `Key ${falApiKey}`,
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify(requestPayload)
-    });
-
-    const responseText = await response.text();
-    let responseBody = null;
-
-    try {
-        responseBody = responseText ? JSON.parse(responseText) : {};
-    } catch (_error) {
-        responseBody = responseText;
     }
 
-    if (!response.ok) {
-        throw createFalProviderError(response.status, responseBody, prompt, savePrefix);
-    }
-
-    const outputImageUrl = String(responseBody?.images?.[0]?.url || "").trim();
-
-    if (!outputImageUrl) {
-        throw createFalProviderError(502, responseBody, prompt, savePrefix);
-    }
-
-    const imageDataUrl = await fetchRemoteImageAsDataUrl(outputImageUrl);
-    const mimeType = getMimeTypeFromDataUrl(imageDataUrl);
-    const savedFile = writeGeneratedImage(getBase64Payload(imageDataUrl), mimeType, savePrefix);
-    const completedDurationMs = Date.now() - requestStartedAt;
-
-    writeImageGeneratorLog({
-        level: "INFO",
-        category: "fal-template-response",
-        message: "Received template generation response from fal.ai.",
-        data: {
-            timestamp: new Date().toISOString(),
-            provider: "fal.ai",
-            model: FAL_TEMPLATE_MODEL_ID,
-            requestLabel: savePrefix || "",
-            durationMs: completedDurationMs,
-            savedFile,
-            outputUrl: outputImageUrl,
-            description: String(responseBody?.description || "")
-        }
-    });
-
-    recordGenerationTiming({
-        requestLabel: savePrefix || "",
-        savePrefix,
-        durationMs: completedDurationMs,
-        attemptNumber: 1,
-        referenceImageCount: 1,
-        savedFile
-    });
-
-    return {
-        imageUrl: imageDataUrl,
-        savedFile,
-        testMode: false
-    };
+    throw lastError || createPublicError(publicErrorMessage, 502, `fal.ai ${logMessageLabel} failed without a recoverable response.`);
 };
+
+const generateTemplateImageWithFal = async(options) => generateImageWithFal({
+    ...options,
+    model: FAL_TEMPLATE_MODEL_ID,
+    publicErrorMessage: "We couldn't create this look right now.",
+    logCategory: "fal-template",
+    logMessageLabel: "template generation"
+});
+
+const generateBackViewImageWithFal = async(options) => generateImageWithFal({
+    ...options,
+    model: FAL_BACK_VIEW_MODEL_ID,
+    publicErrorMessage: "We couldn't create this view right now.",
+    logCategory: "fal-back-view",
+    logMessageLabel: "back-view generation"
+});
+
+const generateRandomImageWithFal = async(options) => generateImageWithFal({
+    ...options,
+    model: FAL_TEMPLATE_MODEL_ID,
+    publicErrorMessage: "We couldn't create this look right now.",
+    logCategory: "fal-random",
+    logMessageLabel: "random hairstyle generation"
+});
+
+const generatePromptVariationImageWithFal = async(options) => generateImageWithFal({
+    ...options,
+    model: FAL_TEMPLATE_MODEL_ID,
+    publicErrorMessage: "We couldn't create this variation right now.",
+    logCategory: "fal-variation",
+    logMessageLabel: "prompt variation generation"
+});
 
 const downloadHairSegmenterModel = async() => {
     const response = await fetch(hairSegmenterModelUrl);
@@ -2308,6 +2469,64 @@ const runHairSegmentation = async({ imageBase64 }) => {
             Number(error?.statusCode || 503),
             error.message || "Hair segmentation failed."
         );
+    } finally {
+        fs.rmSync(jobDirectory, { recursive: true, force: true });
+    }
+};
+
+const runHairLengthAnalysis = async({ imageBase64 }) => {
+    await ensureHairSegmenterModel();
+
+    if (!fs.existsSync(hairLengthAnalyzerScriptPath)) {
+        throw new Error("Hair length analysis script is missing.");
+    }
+
+    const jobDirectory = fs.mkdtempSync(path.join(generatedFolder, "hair-length-"));
+    const inputExtension = getExtensionFromMimeType(getMimeTypeFromDataUrl(imageBase64));
+    const inputPath = path.join(jobDirectory, `source.${inputExtension}`);
+
+    try {
+        saveDataUrlToFile(imageBase64, inputPath);
+
+        const { stdout, stderr } = await execFileAsync(
+            pythonCommand, [
+                hairLengthAnalyzerScriptPath,
+                inputPath,
+                "--model",
+                hairSegmenterModelPath
+            ], {
+                cwd: __dirname,
+                maxBuffer: 50 * 1024 * 1024,
+                timeout: 120000
+            }
+        );
+
+        if (stderr.trim()) {
+            writeAppLog({
+                level: "WARN",
+                category: "hair-length",
+                message: "Hair length analysis wrote to stderr.",
+                data: {
+                    stderr: stderr.trim()
+                }
+            });
+        }
+
+        const parsed = JSON.parse(stdout.trim());
+
+        if (parsed.error) {
+            throw new Error(parsed.error);
+        }
+
+        if (!parsed.lengthCategory) {
+            throw new Error("Hair length analysis did not return a category.");
+        }
+
+        return {
+            lengthCategory: String(parsed.lengthCategory || "").trim().toLowerCase(),
+            lengthLabel: String(parsed.lengthLabel || "").trim(),
+            metrics: parsed.metrics || {}
+        };
     } finally {
         fs.rmSync(jobDirectory, { recursive: true, force: true });
     }
@@ -2666,9 +2885,47 @@ const getLatestSalonPhoto = (salonSlug) => {
     return JSON.parse(fs.readFileSync(latestRecordPath, "utf-8"));
 };
 
+const listRecentSalonPhotos = (salonSlug, { maxAgeMs = SALON_RECENT_PHOTO_WINDOW_MS } = {}) => {
+    const normalizedSalonSlug = sanitizeSalonSlug(salonSlug);
+    const salonFolder = path.join(uploadsFolder, normalizedSalonSlug);
+
+    if (!fs.existsSync(salonFolder)) {
+        return [];
+    }
+
+    const nowMs = Date.now();
+    const recentPhotos = [];
+
+    fs.readdirSync(salonFolder)
+        .filter((filename) => filename.toLowerCase().endsWith(".json") && filename.toLowerCase() !== "latest.json")
+        .forEach((filename) => {
+            const recordPath = path.join(salonFolder, filename);
+
+            try {
+                const record = JSON.parse(fs.readFileSync(recordPath, "utf-8"));
+                const storedAtMs = Date.parse(String(record?.storedAt || ""));
+
+                if (!record?.imageUrl || Number.isNaN(storedAtMs)) {
+                    return;
+                }
+
+                if (nowMs - storedAtMs > maxAgeMs) {
+                    return;
+                }
+
+                recentPhotos.push(record);
+            } catch (_error) {
+                // Ignore malformed salon photo metadata files.
+            }
+        });
+
+    return recentPhotos.sort((left, right) => Date.parse(String(right?.storedAt || "")) - Date.parse(String(left?.storedAt || "")));
+};
+
 app.get("/api/health", (_req, res) => {
     res.json({
         ok: true,
+        falAiUsed: FAL_AI_USED,
         model: MODEL_NAME,
         hasApiKey: Boolean(process.env.GEMINI_API_KEY),
         testMode: TEST_MODE,
@@ -2746,6 +3003,14 @@ app.get("/api/salons/:salonSlug/photos/latest", (req, res) => {
     res.json({ photo });
 });
 
+app.get("/api/salons/:salonSlug/photos/recent", (req, res) => {
+    const photos = listRecentSalonPhotos(req.params.salonSlug);
+    res.json({
+        photos,
+        windowMinutes: Math.round(SALON_RECENT_PHOTO_WINDOW_MS / (1000 * 60))
+    });
+});
+
 app.post("/api/salons/:salonSlug/photos", (req, res) => {
     try {
         const { imageBase64, originalName } = req.body || {};
@@ -2768,40 +3033,87 @@ app.post("/api/salons/:salonSlug/photos", (req, res) => {
 
 app.post("/api/random-hairstyles", async(req, res) => {
     try {
-        const { imageBase64, hairstyles } = req.body || {};
+        const { imageBase64, count: requestedCount } = req.body || {};
+        const resultCount = Math.max(1, Math.min(RANDOM_HAIRSTYLE_RESULT_COUNT, Number(requestedCount || RANDOM_HAIRSTYLE_RESULT_COUNT) || RANDOM_HAIRSTYLE_RESULT_COUNT));
 
         if (!imageBase64) {
             return res.status(400).json({ error: "Please choose a photo first." });
         }
 
-        if (!Array.isArray(hairstyles) || hairstyles.length !== 5) {
-            return res.status(400).json({ error: "Please choose five hairstyle directions and try again." });
+        const hairLengthAnalysis = await runHairLengthAnalysis({ imageBase64 });
+        const selectedStyles = getEligibleRandomTemplateStyles({
+            lengthCategory: hairLengthAnalysis.lengthCategory,
+            count: resultCount
+        });
+
+        if (selectedStyles.length === 0) {
+            return res.status(400).json({ error: "We couldn't find compatible hairstyle references for this photo." });
         }
 
-        const results = [];
-
-        for (const hairstyle of hairstyles) {
-            const finalPrompt = buildHairstyleEditPrompt({
-                hairstyleName: hairstyle.name,
-                hairstylePrompt: hairstyle.prompt
-            });
+        const results = await Promise.all(selectedStyles.map(async(style) => {
+            const finalPrompt = buildRandomReferenceTransferPrompt();
+            const blurredReferenceImageDataUrl = getBlurredStyleReferenceDataUrl(style.filename);
+            const originalReferenceImageDataUrl = blurredReferenceImageDataUrl ? "" : getStyleReferenceDataUrl(style.filename);
+            const initialReferenceImageDataUrl = blurredReferenceImageDataUrl || originalReferenceImageDataUrl;
+            const initialReferenceImageVariant = blurredReferenceImageDataUrl ? "blurred" : "original";
+            const attemptedReferenceVariants = [initialReferenceImageVariant];
 
             try {
-                const result = await generateImageVariation({
-                    imageBase64,
-                    prompt: finalPrompt,
-                    savePrefix: hairstyle.id || "hairstyle",
-                    useTwoPassRefinement: true
-                });
+                const runRandomAttempt = async(referenceImageDataUrl) => {
+                    if (FAL_AI_USED) {
+                        return generateRandomImageWithFal({
+                            imageBase64,
+                            prompt: finalPrompt,
+                            savePrefix: style.id || normalizeStyleKey(style.filename),
+                            referenceImageDataUrl,
+                            referenceFilename: style.filename,
+                            useFacialFit: true
+                        });
+                    }
 
-                results.push({
-                    id: hairstyle.id,
-                    name: hairstyle.name,
-                    sourcePrompt: hairstyle.prompt,
+                    return generateImageVariation({
+                        imageBase64,
+                        prompt: finalPrompt,
+                        savePrefix: style.id || normalizeStyleKey(style.filename),
+                        referenceImageDataUrl,
+                        referenceFilename: style.filename,
+                        useFacialFit: true,
+                        useTwoPassRefinement: true
+                    });
+                };
+
+                let result;
+                let referenceImageVariant = initialReferenceImageVariant;
+
+                try {
+                    result = await runRandomAttempt(initialReferenceImageDataUrl);
+                } catch (error) {
+                    if (
+                        initialReferenceImageVariant !== "original" ||
+                        !shouldRetryWithBlurredStyleReference({
+                            error,
+                            filename: style.filename
+                        })
+                    ) {
+                        throw error;
+                    }
+
+                    attemptedReferenceVariants.push("blurred");
+                    result = await runRandomAttempt(getBlurredStyleReferenceDataUrl(style.filename));
+                    referenceImageVariant = "blurred";
+                }
+
+                return {
+                    id: style.id,
+                    name: style.name,
+                    sourcePrompt: style.prompt,
                     imageUrl: result.imageUrl,
                     savedFile: result.savedFile,
-                    testMode: result.testMode
-                });
+                    testMode: result.testMode,
+                    referenceImageUrl: style.imageUrl,
+                    referenceImageVariant,
+                    detectedHairLength: hairLengthAnalysis.lengthLabel
+                };
             } catch (error) {
                 const errorResponse = getPublicErrorResponse(error, "We couldn't create this look right now.");
                 logGenerationFailure({
@@ -2809,24 +3121,33 @@ app.post("/api/random-hairstyles", async(req, res) => {
                     stage: "hairstyle-option",
                     error,
                     context: {
-                        hairstyleId: hairstyle.id || "",
-                        hairstyleName: hairstyle.name || "",
-                        sourcePrompt: hairstyle.prompt || "",
-                        finalPrompt
+                        hairstyleId: style.id || "",
+                        hairstyleName: style.name || "",
+                        sourcePrompt: style.prompt || "",
+                        finalPrompt,
+                        referenceFilename: style.filename || "",
+                        attemptedReferenceVariants,
+                        detectedHairLength: hairLengthAnalysis
                     }
                 });
-                results.push({
-                    id: hairstyle.id,
-                    name: hairstyle.name,
-                    sourcePrompt: hairstyle.prompt,
+                return {
+                    id: style.id,
+                    name: style.name,
+                    sourcePrompt: style.prompt,
                     errorMessage: errorResponse.message,
                     errorReason: errorResponse.reason || "",
-                    errorDetails: errorResponse.details || ""
-                });
+                    errorDetails: errorResponse.details || "",
+                    referenceImageUrl: style.imageUrl,
+                    detectedHairLength: hairLengthAnalysis.lengthLabel
+                };
             }
-        }
+        }));
 
-        res.json({ results, testMode: TEST_MODE });
+        res.json({
+            results,
+            detectedHairLength: hairLengthAnalysis,
+            testMode: TEST_MODE
+        });
     } catch (error) {
         return respondWithPublicError(res, error, "Random hairstyle generation failed:", "We couldn't create those hairstyle options right now. Please try again.");
     }
@@ -2844,9 +3165,7 @@ app.post("/api/template-hairstyles", async(req, res) => {
             return res.status(400).json({ error: "Select at least one template." });
         }
 
-        const results = [];
-
-        for (const template of templates) {
+        const results = await Promise.all(templates.map(async(template) => {
             const resolvedTemplate = getTemplateStyleByFilename(template.filename) || template;
             const finalPrompt = buildTemplateEditPrompt({
                 templateName: resolvedTemplate.name,
@@ -2861,7 +3180,7 @@ app.post("/api/template-hairstyles", async(req, res) => {
 
             try {
                 const runTemplateAttempt = async(referenceImageDataUrl) => {
-                    if (USE_FAL_TEMPLATE_GENERATION) {
+                    if (FAL_AI_USED) {
                         return generateTemplateImageWithFal({
                             imageBase64,
                             prompt: finalPrompt,
@@ -2917,7 +3236,7 @@ app.post("/api/template-hairstyles", async(req, res) => {
                     referenceImageVariant = "blurred";
                 }
 
-                results.push({
+                return {
                     id: resolvedTemplate.id,
                     name: resolvedTemplate.name,
                     sourcePrompt: resolvedTemplate.prompt,
@@ -2926,7 +3245,7 @@ app.post("/api/template-hairstyles", async(req, res) => {
                     testMode: result.testMode,
                     referenceImageUrl: resolvedTemplate.imageUrl,
                     referenceImageVariant
-                });
+                };
             } catch (error) {
                 const errorResponse = getPublicErrorResponse(error, "We couldn't create this look right now.");
                 logGenerationFailure({
@@ -2943,16 +3262,16 @@ app.post("/api/template-hairstyles", async(req, res) => {
                         attemptedReferenceVariants
                     }
                 });
-                results.push({
+                return {
                     id: resolvedTemplate.id || template.id || normalizeStyleKey(template.filename),
                     name: resolvedTemplate.name || template.name || formatStyleName(template.filename),
                     sourcePrompt: resolvedTemplate.prompt || template.prompt || "",
                     errorMessage: errorResponse.message,
                     errorReason: errorResponse.reason || "",
                     errorDetails: errorResponse.details || ""
-                });
+                };
             }
-        }
+        }));
 
         res.json({ results, testMode: TEST_MODE });
     } catch (error) {
@@ -2984,70 +3303,68 @@ app.post("/api/generated-hairstyle-views", async(req, res) => {
             return res.status(400).json({ error: "Please choose a hairstyle before continuing." });
         }
 
-        const requestedViews = [{
-                id: "left-back-view",
-                name: "Left Back View",
-                viewLabel: "left back",
-                cameraAngle: "back left"
-            },
-            {
-                id: "right-back-view",
-                name: "Right Back View",
-                viewLabel: "right back",
-                cameraAngle: "back right"
-            }
-        ];
+        const requestedView = {
+            id: "left-back-view",
+            name: "Left Back View",
+            viewLabel: "left back",
+            cameraAngle: "back left"
+        };
+        const finalPrompt = buildRearViewPrompt({
+            viewLabel: requestedView.viewLabel,
+            cameraAngle: requestedView.cameraAngle
+        });
+        let results;
 
-        const results = [];
-
-        for (const view of requestedViews) {
-            const finalPrompt = buildRearViewPrompt({
-                viewLabel: view.viewLabel,
-                cameraAngle: view.cameraAngle
-            });
-
-            try {
-                const result = await generateImageVariation({
+        try {
+            const result = FAL_AI_USED ?
+                await generateBackViewImageWithFal({
                     imageBase64: normalizedReferenceImageBase64,
                     prompt: finalPrompt,
                     referenceImageDataUrls: [normalizedModifierImageBase64],
-                    savePrefix: `${normalizeStyleKey(lookName)}-${view.id}`,
+                    savePrefix: `${normalizeStyleKey(lookName)}-${requestedView.id}`,
+                    useFacialFit: false
+                }) :
+                await generateImageVariation({
+                    imageBase64: normalizedReferenceImageBase64,
+                    prompt: finalPrompt,
+                    referenceImageDataUrls: [normalizedModifierImageBase64],
+                    savePrefix: `${normalizeStyleKey(lookName)}-${requestedView.id}`,
                     useTwoPassRefinement: false
                 });
 
-                results.push({
-                    id: view.id,
-                    name: view.name,
-                    sourcePrompt: lookDescription || "",
-                    imageUrl: result.imageUrl,
-                    savedFile: result.savedFile,
-                    testMode: result.testMode
-                });
-            } catch (error) {
-                const errorResponse = getPublicErrorResponse(error, "We couldn't create this view right now.");
-                logGenerationFailure({
-                    route: "/api/generated-hairstyle-views",
-                    stage: "rear-view",
-                    error,
-                    context: {
-                        viewId: view.id,
-                        viewName: view.name,
-                        viewLabel: view.viewLabel,
-                        cameraAngle: view.cameraAngle,
-                        lookName,
-                        lookDescription,
-                        finalPrompt
-                    }
-                });
-                results.push({
-                    id: view.id,
-                    name: view.name,
-                    sourcePrompt: lookDescription || "",
-                    errorMessage: errorResponse.message,
-                    errorReason: errorResponse.reason || "",
-                    errorDetails: errorResponse.details || ""
-                });
-            }
+            results = [{
+                id: requestedView.id,
+                name: requestedView.name,
+                sourcePrompt: lookDescription || "",
+                imageUrl: result.imageUrl,
+                savedFile: result.savedFile,
+                testMode: result.testMode
+            }];
+        } catch (error) {
+            const errorResponse = getPublicErrorResponse(error, "We couldn't create this view right now.");
+            logGenerationFailure({
+                route: "/api/generated-hairstyle-views",
+                stage: "rear-view",
+                error,
+                context: {
+                    provider: FAL_AI_USED ? "fal.ai" : IMAGE_PROVIDER_LABEL,
+                    viewId: requestedView.id,
+                    viewName: requestedView.name,
+                    viewLabel: requestedView.viewLabel,
+                    cameraAngle: requestedView.cameraAngle,
+                    lookName,
+                    lookDescription,
+                    finalPrompt
+                }
+            });
+            results = [{
+                id: requestedView.id,
+                name: requestedView.name,
+                sourcePrompt: lookDescription || "",
+                errorMessage: errorResponse.message,
+                errorReason: errorResponse.reason || "",
+                errorDetails: errorResponse.details || ""
+            }];
         }
 
         res.json({ results, testMode: TEST_MODE });
@@ -3136,18 +3453,30 @@ app.post("/api/generated-hairstyle-variation", async(req, res) => {
                 hasHairColorReference: Boolean(hairColorReferenceImageDataUrl),
                 isHairColorOnlyPrompt
             });
-            const result = await generateImageVariation({
-                imageBase64: normalizedReferenceImageBase64,
-                prompt: finalPrompt,
-                savePrefix: `${normalizeStyleKey(promptVariationMetadata.baseName)}-variation-${promptVariationMetadata.sequence}`,
-                referenceImageDataUrls: [
-                    normalizedModifierImageBase64,
-                    hairColorReferenceImageDataUrl
-                ].filter(Boolean),
-                referenceFilename: "",
-                useFacialFit: false,
-                useTwoPassRefinement: !hasHairColorRequest
-            });
+            const result = FAL_AI_USED ?
+                await generatePromptVariationImageWithFal({
+                    imageBase64: normalizedReferenceImageBase64,
+                    prompt: finalPrompt,
+                    savePrefix: `${normalizeStyleKey(promptVariationMetadata.baseName)}-variation-${promptVariationMetadata.sequence}`,
+                    referenceImageDataUrls: [
+                        normalizedModifierImageBase64,
+                        hairColorReferenceImageDataUrl
+                    ].filter(Boolean),
+                    referenceFilename: "",
+                    useFacialFit: false
+                }) :
+                await generateImageVariation({
+                    imageBase64: normalizedReferenceImageBase64,
+                    prompt: finalPrompt,
+                    savePrefix: `${normalizeStyleKey(promptVariationMetadata.baseName)}-variation-${promptVariationMetadata.sequence}`,
+                    referenceImageDataUrls: [
+                        normalizedModifierImageBase64,
+                        hairColorReferenceImageDataUrl
+                    ].filter(Boolean),
+                    referenceFilename: "",
+                    useFacialFit: false,
+                    useTwoPassRefinement: !hasHairColorRequest
+                });
 
             return {
                 result,

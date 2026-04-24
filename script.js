@@ -3,16 +3,21 @@ const uploadButton = document.getElementById("uploadButton");
 const photoInput = document.getElementById("photoInput");
 const uploadPhotoInput = document.getElementById("uploadPhotoInput");
 const captureStep = document.getElementById("captureStep");
+const receivedPhotosPanel = document.getElementById("receivedPhotosPanel");
+const receivedPhotosHelper = document.getElementById("receivedPhotosHelper");
+const receivedPhotosGrid = document.getElementById("receivedPhotosGrid");
 const previewPanel = document.getElementById("previewPanel");
 const photoPreview = document.getElementById("photoPreview");
 const retakeButton = document.getElementById("retakeButton");
 const nextButton = document.getElementById("nextButton");
 const optionPanel = document.getElementById("optionPanel");
+const optionBackButton = document.getElementById("optionBackButton");
 const randomButton = document.getElementById("randomButton");
 const templateButton = document.getElementById("templateButton");
 const templatePanel = document.getElementById("templatePanel");
 const templateGrid = document.getElementById("templateGrid");
 const templatePrompt = document.getElementById("templatePrompt");
+const templateTopBackButton = document.getElementById("templateTopBackButton");
 const templateBackButton = document.getElementById("templateBackButton");
 const templateNextButton = document.getElementById("templateNextButton");
 const templateNextDock = document.getElementById("templateNextDock");
@@ -23,6 +28,7 @@ const templateFilterBar = document.getElementById("templateFilterBar");
 const templateFilterSummary = document.getElementById("templateFilterSummary");
 const templateFilterReset = document.getElementById("templateFilterReset");
 const generationPanel = document.getElementById("generationPanel");
+const generationBackButton = document.getElementById("generationBackButton");
 const generationProgressCard = document.getElementById("generationProgressCard");
 const generationProgressImage = document.getElementById("generationProgressImage");
 const generationProgressKicker = document.getElementById("generationProgressKicker");
@@ -67,17 +73,23 @@ const promptVariationGrid = document.getElementById("promptVariationGrid");
 const viewResultsSection = document.getElementById("viewResultsSection");
 const viewResultsGrid = document.getElementById("viewResultsGrid");
 
-const hairstyleLibrary = Array.isArray(window.HAIRSTYLE_PROMPTS) ? window.HAIRSTYLE_PROMPTS : [];
 const API_BASE_URL = window.location.protocol === "file:" ? "http://localhost:3013" : "";
 const CAPTURED_PHOTO_STORAGE_KEY = "capturedSalonPhoto";
 const currentPathSegments = window.location.pathname.split("/").filter(Boolean);
 const currentSalonSlug = decodeURIComponent(currentPathSegments[0] || "");
+const RECENT_SALON_PHOTO_WINDOW_MS = 1000 * 60 * 60;
+const RECENT_SALON_PHOTO_POLL_INTERVAL_MS = 5000;
 const TEMPLATE_FILTER_DEFINITIONS = [
   { id: "length", label: "Length", allLabel: "All Lengths" },
   { id: "style", label: "Style", allLabel: "All Styles" },
   { id: "fringe", label: "Fringe", allLabel: "All Fringe Types" },
   { id: "color", label: "Color", allLabel: "All Colors" }
 ];
+const MAIN_STEP_CAPTURE = "capture";
+const MAIN_STEP_PREVIEW = "preview";
+const MAIN_STEP_OPTION = "option";
+const MAIN_STEP_TEMPLATE = "template";
+const MAIN_STEP_GENERATION = "generation";
 
 const createEmptyTemplateFilters = () => Object.fromEntries(
   TEMPLATE_FILTER_DEFINITIONS.map((definition) => [definition.id, ""])
@@ -87,9 +99,12 @@ const LIGHTBOX_MARKUP_COLOR = "#d62f2f";
 const LIGHTBOX_MARKUP_DRAW_SIZE = 4;
 const LIGHTBOX_MARKUP_ERASE_SIZE = 18;
 const IMAGE_TRANSFER_MAX_DIMENSION = 1600;
+const VARIATION_EDIT_IMAGE_MAX_DIMENSION = 1024;
+const VARIATION_REFERENCE_MAX_DIMENSION = 1024;
 const IMAGE_TRANSFER_QUALITY = 0.86;
 const IMAGE_TRANSFER_MIME_TYPE = "image/jpeg";
-const LOADER_TARGET_DURATION_MS = 90 * 1000;
+const LOADER_TARGET_DURATION_AVERAGE_MS = 25 * 1000;
+const LOADER_TARGET_DURATION_JITTER_MS = 3500;
 const LOADER_HOLD_PERCENT = 99;
 const LOADER_COMPLETE_HOLD_MS = 220;
 const COMMON_HAIR_COLORS = [
@@ -145,6 +160,12 @@ let activeLightboxMarkupStroke = null;
 let isVariationHairColorPanelVisible = false;
 let isVariationHairColorCustomVisible = false;
 let selectedVariationHairColor = "";
+let recentSalonPhotos = [];
+let preferredReceivedPhotoId = "";
+let currentMainStep = MAIN_STEP_CAPTURE;
+let optionBackStep = MAIN_STEP_CAPTURE;
+let templateBackStep = MAIN_STEP_OPTION;
+let generationBackStep = MAIN_STEP_OPTION;
 const lightboxMarkupStore = new Map();
 const loadedHairColorPreviewUrls = new Set();
 const createProgressController = (fillElement, percentElement) => ({
@@ -175,7 +196,12 @@ const easeProgress = (value) => (
     : 1 - (Math.pow(-2 * value + 2, 2) / 2)
 );
 
-const buildProgressMilestones = (targetDurationMs = LOADER_TARGET_DURATION_MS) => {
+const resolveLoaderTargetDurationMs = () => {
+  const jitterMs = (Math.random() * LOADER_TARGET_DURATION_JITTER_MS * 2) - LOADER_TARGET_DURATION_JITTER_MS;
+  return Math.max(12000, Math.round(LOADER_TARGET_DURATION_AVERAGE_MS + jitterMs));
+};
+
+const buildProgressMilestones = (targetDurationMs = LOADER_TARGET_DURATION_AVERAGE_MS) => {
   const totalDuration = Math.max(1, targetDurationMs);
   const stages = [
     { timeRatio: 0.16 + (Math.random() * 0.06), minIncrease: 10, maxIncrease: 16, maxPercent: 22 },
@@ -283,7 +309,7 @@ const startProgressController = (controller) => {
 
   resetProgressController(controller);
   controller.startedAt = performance.now();
-  controller.milestones = buildProgressMilestones();
+  controller.milestones = buildProgressMilestones(resolveLoaderTargetDurationMs());
   controller.updateIntervalMs = Math.round(150 + (Math.random() * 120));
 
   const update = () => {
@@ -1164,7 +1190,10 @@ const syncBusyState = () => {
   retakeButton.disabled = busy;
   captureButton.disabled = busy;
   uploadButton.disabled = busy;
+  optionBackButton.disabled = busy;
   templateBackButton.disabled = busy;
+  templateTopBackButton.disabled = busy;
+  generationBackButton.disabled = busy;
   templatePrompt.disabled = busy && !allowTemplateQueueingWhileBusy;
   syncTemplateNextButtonVisibility();
 };
@@ -1261,41 +1290,177 @@ const setSelectedServerImage = (photo) => {
   resetTemplateNextUsage();
 };
 
+const getSalonPhotoPreviewUrl = (photo) => {
+  const imageUrl = String(photo?.imageUrl || "").trim();
+  return imageUrl.startsWith("http") ? imageUrl : `${API_BASE_URL}${imageUrl}`;
+};
+
+const formatReceivedPhotoAge = (storedAt) => {
+  const storedAtMs = Date.parse(String(storedAt || ""));
+
+  if (Number.isNaN(storedAtMs)) {
+    return "Recently received";
+  }
+
+  const elapsedMinutes = Math.max(0, Math.round((Date.now() - storedAtMs) / (1000 * 60)));
+
+  if (elapsedMinutes <= 1) {
+    return "Just now";
+  }
+
+  return `${elapsedMinutes} min ago`;
+};
+
+const selectReceivedSalonPhoto = (photo) => {
+  if (!photo?.imageUrl) {
+    return;
+  }
+
+  preferredReceivedPhotoId = String(photo.id || preferredReceivedPhotoId || "");
+  resetPreviewUrl();
+  setSelectedServerImage(photo);
+  photoPreview.src = getSalonPhotoPreviewUrl(photo);
+  hideGenerationPanel();
+  showOptionStep({ backStep: MAIN_STEP_CAPTURE });
+  setStatus("Choose how you want to generate your new hairstyle.");
+};
+
+const renderRecentSalonPhotos = () => {
+  if (!receivedPhotosPanel || !receivedPhotosHelper || !receivedPhotosGrid) {
+    return;
+  }
+
+  if (!currentSalonSlug) {
+    receivedPhotosPanel.classList.add("is-hidden");
+    return;
+  }
+
+  receivedPhotosPanel.classList.remove("is-hidden");
+  receivedPhotosGrid.innerHTML = "";
+
+  if (!Array.isArray(recentSalonPhotos) || recentSalonPhotos.length === 0) {
+    receivedPhotosHelper.textContent = "Recent salon uploads from the last hour will appear here.";
+
+    const emptyState = document.createElement("div");
+    const emptyCopy = document.createElement("p");
+    emptyState.className = "received-photo-empty";
+    emptyCopy.textContent = "No received images are available yet. Take or upload a new one when you're ready.";
+    emptyState.appendChild(emptyCopy);
+    receivedPhotosGrid.appendChild(emptyState);
+    return;
+  }
+
+  receivedPhotosHelper.textContent = preferredReceivedPhotoId
+    ? "Select the received image you want to use, or take or upload a new one."
+    : "Choose one of the recent received images below, or take or upload a new one.";
+
+  recentSalonPhotos.forEach((photo) => {
+    const card = document.createElement("button");
+    const media = document.createElement("div");
+    const image = document.createElement("img");
+    const body = document.createElement("div");
+    const titleRow = document.createElement("div");
+    const title = document.createElement("h3");
+    const badge = document.createElement("span");
+    const meta = document.createElement("p");
+    const isPreferredPhoto = preferredReceivedPhotoId && String(photo.id || "") === preferredReceivedPhotoId;
+
+    card.className = "received-photo-card";
+    card.type = "button";
+    card.setAttribute("aria-label", `Select received image ${photo.originalName || photo.id || "salon photo"}`);
+    media.className = "received-photo-media";
+    image.src = getSalonPhotoPreviewUrl(photo);
+    image.alt = photo.originalName || `${photo.salonName || "Salon"} received image`;
+    image.loading = "lazy";
+    image.decoding = "async";
+    body.className = "received-photo-body";
+    titleRow.className = "received-photo-title-row";
+    title.className = "received-photo-title";
+    title.textContent = photo.originalName || "Salon upload";
+    badge.className = "received-photo-badge";
+    badge.textContent = isPreferredPhoto ? "New" : formatReceivedPhotoAge(photo.storedAt);
+    meta.className = "received-photo-meta";
+    meta.textContent = "Tap to use this image.";
+
+    media.appendChild(image);
+    titleRow.appendChild(title);
+    titleRow.appendChild(badge);
+    body.appendChild(titleRow);
+    body.appendChild(meta);
+    card.appendChild(media);
+    card.appendChild(body);
+    card.addEventListener("click", () => {
+      selectReceivedSalonPhoto(photo);
+    });
+    receivedPhotosGrid.appendChild(card);
+  });
+};
+
+const loadRecentSalonPhotos = async () => {
+  if (!currentSalonSlug || !receivedPhotosPanel) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/salons/${encodeURIComponent(currentSalonSlug)}/photos/recent`, { cache: "no-store" });
+    const payload = await response.json();
+
+    if (!response.ok) {
+      throw new Error(payload.error || "Unable to load recent salon images.");
+    }
+
+    recentSalonPhotos = Array.isArray(payload.photos) ? payload.photos : [];
+    renderRecentSalonPhotos();
+  } catch (_error) {
+    recentSalonPhotos = [];
+    renderRecentSalonPhotos();
+  }
+};
+
 const showPreviewStep = () => {
   captureStep.classList.add("is-hidden");
   optionPanel.classList.add("is-hidden");
   templatePanel.classList.add("is-hidden");
   previewPanel.classList.remove("is-hidden");
   heroCard.classList.remove("is-template-mode");
+  currentMainStep = MAIN_STEP_PREVIEW;
   syncTemplateNextButtonVisibility();
 };
 
-const showOptionStep = () => {
+const showOptionStep = ({ backStep = currentMainStep } = {}) => {
+  optionBackStep = backStep;
   captureStep.classList.add("is-hidden");
   previewPanel.classList.add("is-hidden");
   templatePanel.classList.add("is-hidden");
   optionPanel.classList.remove("is-hidden");
   heroCard.classList.remove("is-template-mode");
+  currentMainStep = MAIN_STEP_OPTION;
   syncTemplateNextButtonVisibility();
 };
 
-const showTemplateStep = () => {
+const showTemplateStep = ({ backStep = currentMainStep } = {}) => {
+  templateBackStep = backStep;
   captureStep.classList.add("is-hidden");
   previewPanel.classList.add("is-hidden");
   optionPanel.classList.add("is-hidden");
   templatePanel.classList.remove("is-hidden");
   heroCard.classList.add("is-template-mode");
+  currentMainStep = MAIN_STEP_TEMPLATE;
   syncTemplateNextButtonVisibility();
 };
 
-const showGenerationPanel = () => {
+const showGenerationPanel = ({ backStep = currentMainStep } = {}) => {
+  generationBackStep = backStep;
+  generationBackButton.classList.toggle("is-hidden", backStep === MAIN_STEP_TEMPLATE);
   generationPanel.classList.remove("is-hidden");
   heroCard.classList.add("has-results");
+  currentMainStep = MAIN_STEP_GENERATION;
   syncTemplateNextButtonVisibility();
 };
 
 const hideGenerationPanel = () => {
   generationPanel.classList.add("is-hidden");
+  generationBackButton.classList.remove("is-hidden");
   resultGrid.innerHTML = "";
   heroCard.classList.remove("has-results");
   setGenerationProgressState({ active: false });
@@ -1321,9 +1486,18 @@ const resetToCaptureStep = () => {
   templatePrompt.value = "";
   captureStep.classList.remove("is-hidden");
   heroCard.classList.remove("is-template-mode");
+  currentMainStep = MAIN_STEP_CAPTURE;
+  optionBackStep = MAIN_STEP_CAPTURE;
+  templateBackStep = MAIN_STEP_OPTION;
+  generationBackStep = MAIN_STEP_OPTION;
   syncTemplateNextButtonVisibility();
   updateTemplateCount();
   setStatus("");
+  renderRecentSalonPhotos();
+
+  if (currentSalonSlug) {
+    loadRecentSalonPhotos();
+  }
 };
 
 const handleRetake = () => {
@@ -1331,7 +1505,13 @@ const handleRetake = () => {
     return;
   }
 
+  const shouldReturnToChooser = selectedImage?.type === "server";
   resetToCaptureStep();
+
+  if (shouldReturnToChooser) {
+    return;
+  }
+
   reopenLastImagePicker();
 };
 
@@ -1341,25 +1521,28 @@ const handleNext = () => {
     return;
   }
 
-  showOptionStep();
+  showOptionStep({ backStep: MAIN_STEP_PREVIEW });
   setStatus("Choose how you want to generate your new hairstyle.");
+};
+
+const handleOptionBack = () => {
+  if (isGenerating) {
+    return;
+  }
+
+  if (optionBackStep === MAIN_STEP_PREVIEW && hasSelectedImage()) {
+    showPreviewStep();
+    setStatus(selectedImage?.name ? `Selected: ${selectedImage.name}` : "");
+    return;
+  }
+
+  resetToCaptureStep();
 };
 
 const handleTemplateSelection = () => {
   hideGenerationPanel();
-  showTemplateStep();
+  showTemplateStep({ backStep: MAIN_STEP_OPTION });
   setStatus("Choose one or more templates and add an optional extra prompt.");
-};
-
-const pickRandomHairstyles = (items, count) => {
-  const shuffled = [...items];
-
-  for (let index = shuffled.length - 1; index > 0; index -= 1) {
-    const randomIndex = Math.floor(Math.random() * (index + 1));
-    [shuffled[index], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[index]];
-  }
-
-  return shuffled.slice(0, count);
 };
 
 const blobToDataUrl = (blob) => {
@@ -1372,13 +1555,13 @@ const blobToDataUrl = (blob) => {
   });
 };
 
-const loadImageFromObjectUrl = (objectUrl) => {
+const loadImageFromSource = (sourceUrl) => {
   return new Promise((resolve, reject) => {
     const image = new Image();
 
     image.onload = () => resolve(image);
     image.onerror = () => reject(new Error("Unable to process the selected image."));
-    image.src = objectUrl;
+    image.src = sourceUrl;
   });
 };
 
@@ -1390,7 +1573,7 @@ const optimizeImageBlobForTransfer = async (blob) => {
   const objectUrl = URL.createObjectURL(blob);
 
   try {
-    const image = await loadImageFromObjectUrl(objectUrl);
+    const image = await loadImageFromSource(objectUrl);
     const sourceWidth = image.naturalWidth || image.width;
     const sourceHeight = image.naturalHeight || image.height;
 
@@ -1418,6 +1601,46 @@ const optimizeImageBlobForTransfer = async (blob) => {
     return blobToDataUrl(blob);
   } finally {
     URL.revokeObjectURL(objectUrl);
+  }
+};
+
+const resizeImageDataUrlForTransfer = async (dataUrl, maxDimension) => {
+  if (!dataUrl || typeof dataUrl !== "string" || !dataUrl.startsWith("data:image/")) {
+    return dataUrl;
+  }
+
+  try {
+    const image = await loadImageFromSource(dataUrl);
+    const sourceWidth = image.naturalWidth || image.width;
+    const sourceHeight = image.naturalHeight || image.height;
+
+    if (!sourceWidth || !sourceHeight) {
+      return dataUrl;
+    }
+
+    const scale = Math.min(1, maxDimension / Math.max(sourceWidth, sourceHeight));
+
+    if (scale >= 1) {
+      return dataUrl;
+    }
+
+    const targetWidth = Math.max(1, Math.round(sourceWidth * scale));
+    const targetHeight = Math.max(1, Math.round(sourceHeight * scale));
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+
+    if (!context) {
+      return dataUrl;
+    }
+
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, targetWidth, targetHeight);
+    context.drawImage(image, 0, 0, targetWidth, targetHeight);
+    return canvas.toDataURL(IMAGE_TRANSFER_MIME_TYPE, IMAGE_TRANSFER_QUALITY);
+  } catch (_error) {
+    return dataUrl;
   }
 };
 
@@ -1528,6 +1751,81 @@ const getImageDataUrlFromUrl = async (imageUrl) => {
 
   const blob = await response.blob();
   return optimizeImageBlobForTransfer(blob);
+};
+
+const createMirroredImageDataUrl = async (imageUrl) => {
+  const sourceDataUrl = await getImageDataUrlFromUrl(imageUrl);
+  const image = await loadImageFromSource(sourceDataUrl);
+  const sourceWidth = image.naturalWidth || image.width;
+  const sourceHeight = image.naturalHeight || image.height;
+
+  if (!sourceWidth || !sourceHeight) {
+    throw new Error("Unable to mirror the generated image.");
+  }
+
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d");
+
+  if (!context) {
+    throw new Error("Unable to mirror the generated image.");
+  }
+
+  canvas.width = sourceWidth;
+  canvas.height = sourceHeight;
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, sourceWidth, sourceHeight);
+  context.translate(sourceWidth, 0);
+  context.scale(-1, 1);
+  context.drawImage(image, 0, 0, sourceWidth, sourceHeight);
+  return canvas.toDataURL("image/png");
+};
+
+const buildBackViewResultsFromLeftView = async (results, fallbackErrorMessage = "We couldn't create this view right now.") => {
+  const leftView = Array.isArray(results)
+    ? results.find((result) => String(result?.id || "") === "left-back-view") || results[0]
+    : null;
+
+  if (!leftView) {
+    return [
+      { id: "left-back-view", name: "Left Back View", errorMessage: fallbackErrorMessage },
+      { id: "right-back-view", name: "Right Back View", errorMessage: fallbackErrorMessage }
+    ];
+  }
+
+  const normalizedLeftView = {
+    ...leftView,
+    id: "left-back-view",
+    name: leftView.name || "Left Back View"
+  };
+
+  if (!normalizedLeftView.imageUrl) {
+    const propagatedError = normalizedLeftView.errorMessage || fallbackErrorMessage;
+    return [
+      normalizedLeftView,
+      {
+        id: "right-back-view",
+        name: "Right Back View",
+        sourcePrompt: normalizedLeftView.sourcePrompt || "",
+        errorMessage: propagatedError,
+        errorReason: normalizedLeftView.errorReason || "",
+        errorDetails: normalizedLeftView.errorDetails || ""
+      }
+    ];
+  }
+
+  const mirroredImageUrl = await createMirroredImageDataUrl(normalizedLeftView.imageUrl);
+
+  return [
+    normalizedLeftView,
+    {
+      ...normalizedLeftView,
+      id: "right-back-view",
+      name: "Right Back View",
+      imageUrl: mirroredImageUrl,
+      savedFile: "",
+      mirroredFromViewId: "left-back-view"
+    }
+  ];
 };
 
 const setGenerationHeading = (label, title) => {
@@ -2066,8 +2364,10 @@ const updateResultCard = (card, result) => {
   const badge = card.querySelector(".result-badge");
   const note = card.querySelector(".result-note");
   const description = card.querySelector(".result-description");
+  const title = card.querySelector(".result-card-title");
 
   card.resultData = result;
+  title.textContent = result.name || "Generated hairstyle";
   description.textContent = getResultDescription(result);
   clearElementChildren(media);
 
@@ -2099,31 +2399,31 @@ const renderGenerationResults = (cards, results) => {
   });
 };
 
-const requestRandomHairstyles = async ({ imageBase64, hairstyles }) => {
+const requestRandomHairstyles = async ({ imageBase64, count = 5 }) => {
   const payload = await requestGenerationJson({
     endpoint: "/api/random-hairstyles",
     requestName: "random-hairstyles",
     requestBody: {
       imageBase64,
-      hairstyles
+      count
     },
     inputSummary: {
       sourceImagePath: getSelectedImageConsolePath(),
-      hairstyles: hairstyles.map((hairstyle) => ({
-        id: hairstyle.id,
-        name: hairstyle.name,
-        prompt: hairstyle.prompt
-      }))
+      count
     },
     buildOutputSummary: (responsePayload, response) => ({
       ok: true,
       status: response.status,
+      detectedHairLength: responsePayload.detectedHairLength || null,
       results: (responsePayload.results || []).map(summarizeConsoleResultCard)
     }),
     fallbackErrorMessage: "Random hairstyle generation failed."
   });
 
-  return payload.results || [];
+  return {
+    results: payload.results || [],
+    detectedHairLength: payload.detectedHairLength || null
+  };
 };
 
 const requestTemplateHairstyles = async ({ imageBase64, templates, extraPrompt }) => {
@@ -2208,12 +2508,32 @@ const requestGeneratedHairstyleVariation = async ({
   referenceImagePath = "",
   modifierImagePath = ""
 }) => {
+  const hasHairColorRequest = Boolean(
+    hairColorHex ||
+    hairColorLabel ||
+    hairColorReferenceImageBase64 ||
+    hairColorSwatchBase64
+  );
+  const [
+    optimizedReferenceImageBase64,
+    optimizedModifierImageBase64,
+    optimizedHairColorReferenceImageBase64,
+    optimizedHairColorSwatchBase64
+  ] = hasHairColorRequest
+    ? await Promise.all([
+      resizeImageDataUrlForTransfer(referenceImageBase64, VARIATION_EDIT_IMAGE_MAX_DIMENSION),
+      resizeImageDataUrlForTransfer(modifierImageBase64, VARIATION_REFERENCE_MAX_DIMENSION),
+      resizeImageDataUrlForTransfer(hairColorReferenceImageBase64, VARIATION_REFERENCE_MAX_DIMENSION),
+      resizeImageDataUrlForTransfer(hairColorSwatchBase64, VARIATION_REFERENCE_MAX_DIMENSION)
+    ])
+    : [referenceImageBase64, modifierImageBase64, hairColorReferenceImageBase64, hairColorSwatchBase64];
+
   const payload = await requestGenerationJson({
     endpoint: "/api/generated-hairstyle-variation",
     requestName: "generated-hairstyle-variation",
     requestBody: {
-      referenceImageBase64,
-      modifierImageBase64,
+      referenceImageBase64: optimizedReferenceImageBase64,
+      modifierImageBase64: optimizedModifierImageBase64,
       lookName,
       lookDescription,
       variationBaseName,
@@ -2221,10 +2541,10 @@ const requestGeneratedHairstyleVariation = async ({
       extraPrompt,
       hairColorHex,
       hairColorLabel,
-      hairColorReferenceImageBase64,
+      hairColorReferenceImageBase64: optimizedHairColorReferenceImageBase64,
       hairColorReferenceFilename,
       hairColorReferenceKind,
-      hairColorSwatchBase64
+      hairColorSwatchBase64: optimizedHairColorSwatchBase64
     },
     inputSummary: {
       referenceImagePath,
@@ -2273,12 +2593,12 @@ const handleGenerateViews = async () => {
     { id: "left-back-view", name: "Left Back View", pending: true },
     { id: "right-back-view", name: "Right Back View", pending: true }
   ];
-  viewStatusMessage.textContent = "Generating left-back and right-back views.";
+  viewStatusMessage.textContent = "Generating the left-back view.";
   syncLightboxPanels();
   setLightboxLoadingState({
     active: true,
     title: "Generating More Views",
-    text: "The selected result is being used to create additional back-angle views."
+    text: "The selected result is being used to create a left-back view. The right-back view will be mirrored from it."
   });
   let requestCompleted = false;
 
@@ -2293,9 +2613,10 @@ const handleGenerateViews = async () => {
       referenceImagePath: getSelectedImageConsolePath(),
       modifierImagePath: getResultConsolePath(resultReference)
     });
+    const backViewResults = await buildBackViewResultsFromLeftView(results);
 
     requestCompleted = true;
-    resultReference.followUpViews = results;
+    resultReference.followUpViews = backViewResults;
     if (activeLightboxResult === resultReference) {
       viewStatusMessage.textContent = "Your extra back-angle views are ready.";
       syncLightboxPanels();
@@ -2477,19 +2798,17 @@ const handleRandomHairstyles = async () => {
     setStatus("Please take a picture before generating hairstyles.");
     return;
   }
-
-  if (hairstyleLibrary.length < 5) {
-    setStatus("The hairstyle library is incomplete.");
-    return;
-  }
-
-  const selectedHairstyles = pickRandomHairstyles(hairstyleLibrary, 5);
+  const placeholderHairstyles = Array.from({ length: 5 }, (_, index) => ({
+    id: `random-look-${index + 1}`,
+    name: `Random Look ${index + 1}`,
+    prompt: "Selecting a compatible hairstyle reference."
+  }));
   const sourcePreviewUrl = getSelectedImagePreviewUrl();
 
   resultGrid.innerHTML = "";
-  const cards = selectedHairstyles.map(createResultCard);
+  const cards = placeholderHairstyles.map(createResultCard);
   setGenerationHeading("Random Set", "Five hairstyle directions");
-  showGenerationPanel();
+  showGenerationPanel({ backStep: MAIN_STEP_OPTION });
   setGenerationProgressState({
     active: true,
     imageUrl: sourcePreviewUrl,
@@ -2504,16 +2823,18 @@ const handleRandomHairstyles = async () => {
 
   try {
     const imageBase64 = await getSelectedImageDataUrl();
-    const results = await requestRandomHairstyles({
+    const { results, detectedHairLength } = await requestRandomHairstyles({
       imageBase64,
-      hairstyles: selectedHairstyles
+      count: 5
     });
 
     requestCompleted = true;
     renderGenerationResults(cards, results);
-    setStatus("Your hairstyle variations are ready.");
+    setStatus(detectedHairLength?.lengthLabel
+      ? `Your hairstyle variations are ready. Visible length detected: ${detectedHairLength.lengthLabel}.`
+      : "Your hairstyle variations are ready.");
   } catch (error) {
-    const fallbackResults = selectedHairstyles.map((hairstyle) => ({
+    const fallbackResults = placeholderHairstyles.map((hairstyle) => ({
       name: hairstyle.name,
       sourcePrompt: hairstyle.prompt,
       errorMessage: error.message
@@ -2538,7 +2859,7 @@ const handleOpenTemplates = async () => {
   }
 
   hideGenerationPanel();
-  showTemplateStep();
+  showTemplateStep({ backStep: MAIN_STEP_OPTION });
   setStatus("Loading hairstyle templates.");
 
   try {
@@ -2557,8 +2878,41 @@ const handleTemplateBack = () => {
     return;
   }
 
-  showOptionStep();
-  setStatus("Choose how you want to generate your new hairstyle.");
+  if (templateBackStep === MAIN_STEP_OPTION) {
+    showOptionStep({ backStep: optionBackStep });
+    setStatus("Choose how you want to generate your new hairstyle.");
+    return;
+  }
+
+  resetToCaptureStep();
+};
+
+const handleGenerationBack = () => {
+  if (isGenerating) {
+    return;
+  }
+
+  hideGenerationPanel();
+
+  if (generationBackStep === MAIN_STEP_TEMPLATE) {
+    showTemplateStep({ backStep: templateBackStep });
+    setStatus("Choose one or more templates and add an optional extra prompt.");
+    return;
+  }
+
+  if (generationBackStep === MAIN_STEP_OPTION) {
+    showOptionStep({ backStep: optionBackStep });
+    setStatus("Choose how you want to generate your new hairstyle.");
+    return;
+  }
+
+  if (generationBackStep === MAIN_STEP_PREVIEW && hasSelectedImage()) {
+    showPreviewStep();
+    setStatus(selectedImage?.name ? `Selected: ${selectedImage.name}` : "");
+    return;
+  }
+
+  resetToCaptureStep();
 };
 
 const formatTemplateBatchCount = (count) => `${count} queued batch${count === 1 ? "" : "es"}`;
@@ -2586,7 +2940,7 @@ const processTemplateGenerationQueue = async () => {
       const queuedBatchCount = templateGenerationQueue.length;
 
       setGenerationHeading("Template Set", "Chosen hairstyle templates");
-      showGenerationPanel();
+      showGenerationPanel({ backStep: MAIN_STEP_TEMPLATE });
       setGenerationProgressState({
         active: true,
         imageUrl: sourcePreviewUrl,
@@ -2683,7 +3037,7 @@ const handleTemplateNext = () => {
 
   const cards = selectedTemplates.map(createResultCard);
   setGenerationHeading("Template Set", "Chosen hairstyle templates");
-  showGenerationPanel();
+  showGenerationPanel({ backStep: MAIN_STEP_TEMPLATE });
 
   templateGenerationQueue.push({
     selectedTemplates,
@@ -2711,7 +3065,7 @@ const handleTemplateNext = () => {
 captureButton.addEventListener("click", openCameraPicker);
 uploadButton.addEventListener("click", openUploadPicker);
 
-const restoreCapturedSalonPhoto = () => {
+const consumeStoredSalonPhotoPreference = () => {
   const storedPhoto = sessionStorage.getItem(CAPTURED_PHOTO_STORAGE_KEY);
 
   if (!storedPhoto) {
@@ -2732,12 +3086,18 @@ const restoreCapturedSalonPhoto = () => {
       return;
     }
 
+    const storedAtMs = Date.parse(String(photo?.storedAt || ""));
+
+    if (!Number.isNaN(storedAtMs) && (Date.now() - storedAtMs) > RECENT_SALON_PHOTO_WINDOW_MS) {
+      sessionStorage.removeItem(CAPTURED_PHOTO_STORAGE_KEY);
+      return;
+    }
+
     sessionStorage.removeItem(CAPTURED_PHOTO_STORAGE_KEY);
-    setSelectedServerImage(photo);
-    photoPreview.src = photo.imageUrl.startsWith("http") ? photo.imageUrl : `${API_BASE_URL}${photo.imageUrl}`;
-    hideGenerationPanel();
-    showOptionStep();
-    setStatus(`Photo loaded for ${photo.salonName || "your salon"}. Choose from templates or generate randomly.`);
+    preferredReceivedPhotoId = String(photo.id || "");
+    recentSalonPhotos = [photo, ...recentSalonPhotos.filter((existingPhoto) => String(existingPhoto?.id || "") !== preferredReceivedPhotoId)];
+    renderRecentSalonPhotos();
+    setStatus(`New photo received for ${photo.salonName || "your salon"}. Select it below or choose another image.`);
   } catch (_error) {
     sessionStorage.removeItem(CAPTURED_PHOTO_STORAGE_KEY);
   }
@@ -2772,9 +3132,12 @@ uploadPhotoInput.addEventListener("change", () => {
 
 retakeButton.addEventListener("click", handleRetake);
 nextButton.addEventListener("click", handleNext);
+optionBackButton.addEventListener("click", handleOptionBack);
 randomButton.addEventListener("click", handleRandomHairstyles);
 templateButton.addEventListener("click", handleOpenTemplates);
+templateTopBackButton.addEventListener("click", handleTemplateBack);
 templateBackButton.addEventListener("click", handleTemplateBack);
+generationBackButton.addEventListener("click", handleGenerationBack);
 templateNextButton.addEventListener("click", handleTemplateNext);
 templateFilterToggle.addEventListener("click", () => {
   setTemplateFilterVisibility(!areTemplateFiltersVisible);
@@ -2849,7 +3212,18 @@ window.addEventListener("keydown", (event) => {
   }
 });
 
-restoreCapturedSalonPhoto();
+consumeStoredSalonPhotoPreference();
+loadRecentSalonPhotos();
+
+if (currentSalonSlug) {
+  window.setInterval(() => {
+    if (document.hidden) {
+      return;
+    }
+
+    loadRecentSalonPhotos();
+  }, RECENT_SALON_PHOTO_POLL_INTERVAL_MS);
+}
 syncTemplateNextButtonVisibility();
 syncLightboxMarkupToolState();
 syncLightboxActionAvailability();

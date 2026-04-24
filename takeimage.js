@@ -2,11 +2,16 @@ const openCameraButton = document.getElementById("openCameraButton");
 const openUploadButton = document.getElementById("openUploadButton");
 const capturePhotoInput = document.getElementById("capturePhotoInput");
 const uploadPhotoInput = document.getElementById("uploadPhotoInput");
-const previewStep = document.getElementById("previewStep");
 const captureStage = document.getElementById("captureStage");
+const captureSuccessPanel = document.getElementById("captureSuccessPanel");
+const sendAnotherCameraButton = document.getElementById("sendAnotherCameraButton");
+const sendAnotherUploadButton = document.getElementById("sendAnotherUploadButton");
+const previewStep = document.getElementById("previewStep");
 const capturePreviewImage = document.getElementById("capturePreviewImage");
+const closePreviewButton = document.getElementById("closePreviewButton");
 const retakeCaptureButton = document.getElementById("retakeCaptureButton");
 const captureStatusMessage = document.getElementById("captureStatusMessage");
+const previewStatusMessage = document.getElementById("previewStatusMessage");
 const continueToSalonButton = document.getElementById("continueToSalonButton");
 const previewActionRow = document.getElementById("previewActionRow");
 
@@ -22,16 +27,50 @@ let previewUrl = "";
 let isUploading = false;
 let selectedCaptureFile = null;
 let hasPreviewImage = false;
+let hasUploadSuccess = false;
+
+const initializeTakeImagePage = () => {
+  isUploading = false;
+  sessionStorage.removeItem(CAPTURED_PHOTO_STORAGE_KEY);
+  resetFlow();
+};
 
 const setStatus = (message) => {
   captureStatusMessage.textContent = message;
+  previewStatusMessage.textContent = message;
 };
 
 const syncControlState = () => {
   openCameraButton.disabled = isUploading || hasPreviewImage;
   openUploadButton.disabled = isUploading || hasPreviewImage;
+  closePreviewButton.disabled = isUploading || !hasPreviewImage;
   retakeCaptureButton.disabled = isUploading || !hasPreviewImage;
   continueToSalonButton.disabled = isUploading || !hasPreviewImage;
+  sendAnotherCameraButton.disabled = isUploading;
+  sendAnotherUploadButton.disabled = isUploading;
+};
+
+const syncViewState = () => {
+  captureStage.hidden = hasUploadSuccess;
+  captureStage.classList.toggle("is-hidden", hasUploadSuccess);
+  captureStage.inert = hasUploadSuccess || hasPreviewImage;
+
+  captureSuccessPanel.hidden = !hasUploadSuccess;
+  captureSuccessPanel.classList.toggle("is-hidden", !hasUploadSuccess);
+  captureSuccessPanel.inert = !hasUploadSuccess;
+
+  previewStep.hidden = !hasPreviewImage;
+  previewStep.classList.toggle("is-hidden", !hasPreviewImage);
+  previewStep.inert = !hasPreviewImage;
+  previewStep.setAttribute("aria-hidden", String(!hasPreviewImage));
+
+  document.body.classList.toggle("capture-preview-open", hasPreviewImage);
+  capturePreviewImage.hidden = !hasPreviewImage;
+  previewActionRow.hidden = !hasPreviewImage;
+  closePreviewButton.hidden = !hasPreviewImage;
+  retakeCaptureButton.hidden = !hasPreviewImage;
+  continueToSalonButton.hidden = !hasPreviewImage;
+  syncControlState();
 };
 
 const setBusyState = (busy) => {
@@ -41,17 +80,16 @@ const setBusyState = (busy) => {
 
 const setPreviewState = (hasImage) => {
   hasPreviewImage = hasImage;
-  captureStage.hidden = hasImage;
-  captureStage.classList.toggle("is-hidden", hasImage);
-  captureStage.inert = hasImage;
-  previewStep.hidden = !hasImage;
-  previewStep.classList.toggle("is-hidden", !hasImage);
-  previewStep.inert = !hasImage;
-  capturePreviewImage.hidden = !hasImage;
-  previewActionRow.hidden = !hasImage;
-  retakeCaptureButton.hidden = !hasImage;
-  continueToSalonButton.hidden = !hasImage;
-  syncControlState();
+  syncViewState();
+
+  if (hasImage) {
+    closePreviewButton.focus({ preventScroll: true });
+  }
+};
+
+const setSuccessState = (hasSuccess) => {
+  hasUploadSuccess = hasSuccess;
+  syncViewState();
 };
 
 const openInputPicker = async (inputElement) => {
@@ -102,18 +140,32 @@ const resetPreviewUrl = () => {
   previewUrl = "";
 };
 
+const clearSelectedCapture = () => {
+  selectedCaptureFile = null;
+  capturePhotoInput.value = "";
+  uploadPhotoInput.value = "";
+  capturePreviewImage.removeAttribute("src");
+  resetPreviewUrl();
+};
+
 const resetFlow = () => {
   if (isUploading) {
     return;
   }
 
-  selectedCaptureFile = null;
-  resetPreviewUrl();
-  capturePhotoInput.value = "";
-  uploadPhotoInput.value = "";
-  capturePreviewImage.removeAttribute("src");
+  clearSelectedCapture();
   setPreviewState(false);
+  setSuccessState(false);
   setStatus("");
+};
+
+const dismissPreview = () => {
+  if (isUploading || !hasPreviewImage) {
+    return;
+  }
+
+  closePreviewButton.blur();
+  resetFlow();
 };
 
 const blobToDataUrl = (blob) => {
@@ -177,6 +229,7 @@ const optimizeImageBlobForTransfer = async (blob) => {
 
 const showPreview = (file) => {
   selectedCaptureFile = file;
+  setSuccessState(false);
   resetPreviewUrl();
   previewUrl = URL.createObjectURL(file);
   capturePreviewImage.src = previewUrl;
@@ -186,8 +239,15 @@ const showPreview = (file) => {
   setStatus("");
 };
 
-const redirectToSalonHomepage = () => {
-  window.location.assign(`/${encodeURIComponent(rawSalonSlug)}`);
+const showUploadSuccess = (photo) => {
+  if (photo) {
+    sessionStorage.setItem(CAPTURED_PHOTO_STORAGE_KEY, JSON.stringify(photo));
+  }
+
+  clearSelectedCapture();
+  setPreviewState(false);
+  setSuccessState(true);
+  setStatus("");
 };
 
 const handleUpload = async () => {
@@ -220,9 +280,7 @@ const handleUpload = async () => {
       throw new Error(payload.error || "Unable to save the photo.");
     }
 
-    const { photo } = payload;
-    sessionStorage.setItem(CAPTURED_PHOTO_STORAGE_KEY, JSON.stringify(photo));
-    redirectToSalonHomepage();
+    showUploadSuccess(payload.photo);
   } catch (error) {
     setStatus(error.message);
   } finally {
@@ -230,10 +288,37 @@ const handleUpload = async () => {
   }
 };
 
-setPreviewState(false);
+const handleSelectedCaptureFile = (selectedFile) => {
+  if (!selectedFile) {
+    setStatus("");
+    return;
+  }
+
+  showPreview(selectedFile);
+};
 
 openCameraButton.addEventListener("click", openCameraPicker);
 openUploadButton.addEventListener("click", openUploadPicker);
+sendAnotherCameraButton.addEventListener("click", async (event) => {
+  setSuccessState(false);
+  await openCameraPicker(event);
+});
+sendAnotherUploadButton.addEventListener("click", async (event) => {
+  setSuccessState(false);
+  await openUploadPicker(event);
+});
+closePreviewButton.addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  dismissPreview();
+});
+previewStep.addEventListener("click", (event) => {
+  if (event.target !== previewStep) {
+    return;
+  }
+
+  dismissPreview();
+});
 retakeCaptureButton.addEventListener("click", async (event) => {
   event.preventDefault();
   event.stopPropagation();
@@ -253,15 +338,6 @@ continueToSalonButton.addEventListener("click", (event) => {
   handleUpload();
 });
 
-const handleSelectedCaptureFile = (selectedFile) => {
-  if (!selectedFile) {
-    setStatus("");
-    return;
-  }
-
-  showPreview(selectedFile);
-};
-
 capturePhotoInput.addEventListener("change", () => {
   const [selectedFile] = capturePhotoInput.files;
   handleSelectedCaptureFile(selectedFile);
@@ -272,4 +348,18 @@ uploadPhotoInput.addEventListener("change", () => {
   handleSelectedCaptureFile(selectedFile);
 });
 
+window.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") {
+    return;
+  }
+
+  dismissPreview();
+});
+
+window.addEventListener("pageshow", () => {
+  initializeTakeImagePage();
+});
+
 window.addEventListener("beforeunload", resetPreviewUrl);
+
+initializeTakeImagePage();

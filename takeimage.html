@@ -28,6 +28,16 @@
         </div>
       </section>
 
+      <section class="capture-success-panel is-hidden" id="captureSuccessPanel" aria-live="polite" hidden>
+        <p class="capture-success-badge">Image Sent</p>
+        <h2 class="capture-success-title">Your image will be sent shortly!</h2>
+        <p class="capture-success-copy">The salon can receive it now. You can retake another image or upload another one anytime.</p>
+        <div class="capture-preview-actions capture-success-actions">
+          <button class="capture-retake-button" id="sendAnotherCameraButton" type="button">Retake Image</button>
+          <button class="capture-continue-button" id="sendAnotherUploadButton" type="button">Upload Another</button>
+        </div>
+      </section>
+
       <input
         class="file-input"
         id="capturePhotoInput"
@@ -42,17 +52,21 @@
         accept="image/*"
       >
 
-      <section class="capture-preview-panel is-hidden" id="previewStep" aria-label="Captured photo preview" hidden>
-        <img class="capture-preview-image" id="capturePreviewImage" alt="Captured salon portrait preview" hidden>
-        <div class="capture-preview-actions" id="previewActionRow" hidden>
-          <button class="capture-retake-button" id="retakeCaptureButton" type="button" hidden>Retake</button>
-          <button class="capture-continue-button" id="continueToSalonButton" type="button" hidden>Continue</button>
-        </div>
-      </section>
-
       <p class="status-message" id="captureStatusMessage" aria-live="polite"></p>
     </section>
   </main>
+
+  <section class="capture-preview-panel is-hidden" id="previewStep" aria-hidden="true" hidden>
+    <div class="capture-preview-dialog" role="dialog" aria-modal="true" aria-label="Captured photo preview">
+      <button class="capture-preview-close" id="closePreviewButton" type="button" aria-label="Close preview">&times;</button>
+      <img class="capture-preview-image" id="capturePreviewImage" alt="Captured salon portrait preview" hidden>
+      <div class="capture-preview-actions" id="previewActionRow" hidden>
+        <button class="capture-retake-button" id="retakeCaptureButton" type="button" hidden>Retake</button>
+        <button class="capture-continue-button" id="continueToSalonButton" type="button" hidden>Continue</button>
+      </div>
+      <p class="capture-preview-status" id="previewStatusMessage" aria-live="polite"></p>
+    </div>
+  </section>
 
   <script src="/takeimage.js"></script>
 </body>

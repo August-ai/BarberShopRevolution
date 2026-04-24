@@ -1,11 +1,137 @@
 {
-  "updatedAt": "2026-04-24T05:44:29.722Z",
-  "totalCompleted": 47,
-  "totalDurationMs": 1290191,
-  "averageDurationMs": 27450.87,
+  "updatedAt": "2026-04-24T20:56:04.167Z",
+  "totalCompleted": 61,
+  "totalDurationMs": 1739636,
+  "averageDurationMs": 28518.62,
   "minDurationMs": 10177,
   "maxDurationMs": 68871,
   "recent": [
+    {
+      "timestamp": "2026-04-24T20:56:04.167Z",
+      "requestLabel": "long sleek cut with full blunt bangs-variation-2",
+      "savePrefix": "long sleek cut with full blunt bangs-variation-2",
+      "durationMs": 31816,
+      "attemptNumber": 1,
+      "referenceImageCount": 2,
+      "savedFile": "long sleek cut with full blunt bangs-variation-2_1777064164159_n1brry.webp"
+    },
+    {
+      "timestamp": "2026-04-24T20:54:54.831Z",
+      "requestLabel": "long sleek cut with full blunt bangs-left-back-view",
+      "savePrefix": "long sleek cut with full blunt bangs-left-back-view",
+      "durationMs": 41922,
+      "attemptNumber": 1,
+      "referenceImageCount": 1,
+      "savedFile": "long sleek cut with full blunt bangs-left-back-view_1777064094820_vf4rh8.webp"
+    },
+    {
+      "timestamp": "2026-04-24T20:53:30.158Z",
+      "requestLabel": "long-sleek-cut-with-full-blunt-bangs",
+      "savePrefix": "long-sleek-cut-with-full-blunt-bangs",
+      "durationMs": 41933,
+      "attemptNumber": 1,
+      "referenceImageCount": 1,
+      "savedFile": "long-sleek-cut-with-full-blunt-bangs_1777064010150_v7k3ml.webp"
+    },
+    {
+      "timestamp": "2026-04-24T20:53:15.691Z",
+      "requestLabel": "medium-brown-long-bob-with-highlighted-face-framing-layers",
+      "savePrefix": "medium-brown-long-bob-with-highlighted-face-framing-layers",
+      "durationMs": 27263,
+      "attemptNumber": 1,
+      "referenceImageCount": 1,
+      "savedFile": "medium-brown-long-bob-with-highlighted-face-framing-layers_1777063995681_cv6100.webp"
+    },
+    {
+      "timestamp": "2026-04-24T20:39:08.055Z",
+      "requestLabel": "beachy-textured-lob-with-blonde-balayage",
+      "savePrefix": "beachy-textured-lob-with-blonde-balayage",
+      "durationMs": 33182,
+      "attemptNumber": 1,
+      "referenceImageCount": 1,
+      "savedFile": "beachy-textured-lob-with-blonde-balayage_1777063147950_tx979s.webp"
+    },
+    {
+      "timestamp": "2026-04-24T09:20:27.740Z",
+      "requestLabel": "long face-framing layers with curtain bangs-left-back-view",
+      "savePrefix": "long face-framing layers with curtain bangs-left-back-view",
+      "durationMs": 44431,
+      "attemptNumber": 1,
+      "referenceImageCount": 1,
+      "savedFile": "long face-framing layers with curtain bangs-left-back-view_1777022427734_b2prou.webp"
+    },
+    {
+      "timestamp": "2026-04-24T09:20:11.762Z",
+      "requestLabel": "long face-framing layers with curtain bangs-right-back-view",
+      "savePrefix": "long face-framing layers with curtain bangs-right-back-view",
+      "durationMs": 28450,
+      "attemptNumber": 1,
+      "referenceImageCount": 1,
+      "savedFile": "long face-framing layers with curtain bangs-right-back-view_1777022411757_58lgzv.webp"
+    },
+    {
+      "timestamp": "2026-04-24T09:19:24.029Z",
+      "requestLabel": "long-face-framing-layers-with-curtain-bangs",
+      "savePrefix": "long-face-framing-layers-with-curtain-bangs",
+      "durationMs": 22646,
+      "attemptNumber": 1,
+      "referenceImageCount": 1,
+      "savedFile": "long-face-framing-layers-with-curtain-bangs_1777022364025_1eyxat.webp"
+    },
+    {
+      "timestamp": "2026-04-24T09:18:16.172Z",
+      "requestLabel": "tousled-side-part-bob",
+      "savePrefix": "tousled-side-part-bob",
+      "durationMs": 19519,
+      "attemptNumber": 1,
+      "referenceImageCount": 1,
+      "savedFile": "tousled-side-part-bob_1777022296167_pmgu1f.webp"
+    },
+    {
+      "timestamp": "2026-04-24T09:15:00.731Z",
+      "requestLabel": "curly-shag-with-short-fringe",
+      "savePrefix": "curly-shag-with-short-fringe",
+      "durationMs": 25788,
+      "attemptNumber": 1,
+      "referenceImageCount": 1,
+      "savedFile": "curly-shag-with-short-fringe_1777022100712_x4o9h1.webp"
+    },
+    {
+      "timestamp": "2026-04-24T08:59:05.190Z",
+      "requestLabel": "feathered shag with curtain bangs-variation-2",
+      "savePrefix": "feathered shag with curtain bangs-variation-2",
+      "durationMs": 28704,
+      "attemptNumber": 1,
+      "referenceImageCount": 2,
+      "savedFile": "feathered shag with curtain bangs-variation-2_1777021145179_0h2cs9.jpg"
+    },
+    {
+      "timestamp": "2026-04-24T08:53:18.113Z",
+      "requestLabel": "feathered shag with curtain bangs-right-back-view",
+      "savePrefix": "feathered shag with curtain bangs-right-back-view",
+      "durationMs": 35110,
+      "attemptNumber": 1,
+      "referenceImageCount": 1,
+      "savedFile": "feathered shag with curtain bangs-right-back-view_1777020798104_4skmlz.jpg"
+    },
+    {
+      "timestamp": "2026-04-24T08:52:42.987Z",
+      "requestLabel": "feathered shag with curtain bangs-left-back-view",
+      "savePrefix": "feathered shag with curtain bangs-left-back-view",
+      "durationMs": 46892,
+      "attemptNumber": 1,
+      "referenceImageCount": 1,
+      "savedFile": "feathered shag with curtain bangs-left-back-view_1777020762975_2rqk72.jpg"
+    },
+    {
+      "timestamp": "2026-04-24T08:51:44.923Z",
+      "requestLabel": "feathered-shag-with-curtain-bangs",
+      "savePrefix": "feathered-shag-with-curtain-bangs",
+      "durationMs": 21789,
+      "attemptNumber": 1,
+      "referenceImageCount": 1,
+      "savedFile": "feathered-shag-with-curtain-bangs_1777020704849_ymn7y9.webp"
+    },
     {
       "timestamp": "2026-04-24T05:44:29.722Z",
       "requestLabel": "long-sleek-cut-with-full-blunt-bangs",

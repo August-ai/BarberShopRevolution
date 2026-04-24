@@ -20,6 +20,13 @@
                     <button class="capture-button" id="captureButton" type="button">Take Picture</button>
                     <button class="secondary-button" id="uploadButton" type="button">Upload Picture</button>
                 </div>
+                <section class="received-photos-panel is-hidden" id="receivedPhotosPanel" aria-label="Received salon images">
+                    <div class="received-photos-copy">
+                        <p class="section-label">Received Images</p>
+                        <p class="received-photos-helper" id="receivedPhotosHelper">Select a recent salon image to continue.</p>
+                    </div>
+                    <div class="received-photos-grid" id="receivedPhotosGrid"></div>
+                </section>
             </div>
             <input class="file-input" id="photoInput" type="file" accept="image/*" capture="environment">
             <input class="file-input" id="uploadPhotoInput" type="file" accept="image/*">
@@ -39,16 +46,19 @@
                 </div>
             </section>
             <section class="option-panel is-hidden" id="optionPanel" aria-label="Hairstyle options">
+                <div class="panel-topbar">
+                    <button class="secondary-button panel-back-button" id="optionBackButton" type="button">Back</button>
+                </div>
                 <button class="capture-button" id="randomButton" type="button">Generate Random Hairstyles</button>
                 <button class="secondary-button option-button" id="templateButton" type="button">Choose From Templates</button>
             </section>
             <section class="template-panel is-hidden" id="templatePanel" aria-label="Hairstyle templates">
                 <div class="template-topbar">
+                    <button class="secondary-button panel-back-button" id="templateTopBackButton" type="button">Back</button>
                     <div class="template-count" id="templateCount" aria-live="polite">
                         <span class="template-count-dot"></span>
                         <span class="template-count-text">0 selected</span>
                     </div>
-
                 </div>
                 <div class="section-copy">
                     <p class="section-label">Template Library</p>
@@ -91,6 +101,9 @@
                 </div>
             </section>
             <section class="generation-panel is-hidden" id="generationPanel" aria-label="Generated hairstyle previews">
+                <div class="panel-topbar">
+                    <button class="secondary-button panel-back-button" id="generationBackButton" type="button">Back</button>
+                </div>
                 <div class="section-copy">
                     <p class="section-label" id="generationLabel">Random Set</p>
                     <h2 class="section-title" id="generationTitle">Five hairstyle directions</h2>
