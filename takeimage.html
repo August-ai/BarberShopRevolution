@@ -13,14 +13,18 @@
   <main class="capture-page-shell">
     <section class="capture-card">
       <div class="capture-header">
-        <p class="capture-kicker">Style Preview</p>
+        <p class="capture-kicker">Salon Capture</p>
         <h1 class="capture-title">Capture Your Look</h1>
+        <p class="capture-copy">Take a clear photo or upload one to start your salon preview.</p>
       </div>
 
       <section class="capture-stage" id="captureStage">
-        <div class="action-row">
-          <button class="capture-button" id="openCameraButton" type="button">Take Image</button>
-          <button class="secondary-button" id="openUploadButton" type="button">Upload</button>
+        <div class="capture-stage-frame">
+          <p class="capture-helper">Best results come from a front-facing photo with clear lighting and the full face visible.</p>
+          <div class="action-row">
+            <button class="capture-button" id="openCameraButton" type="button">Take Image</button>
+            <button class="secondary-button" id="openUploadButton" type="button">Upload</button>
+          </div>
         </div>
       </section>
 
@@ -40,9 +44,9 @@
 
       <section class="capture-preview-panel is-hidden" id="previewStep" aria-label="Captured photo preview" hidden>
         <img class="capture-preview-image" id="capturePreviewImage" alt="Captured salon portrait preview" hidden>
-        <div class="action-row" id="previewActionRow" hidden>
-          <button class="secondary-button" id="retakeCaptureButton" type="button" hidden>Retake</button>
-          <button class="secondary-button secondary-button-dark" id="continueToSalonButton" type="button" hidden>Continue</button>
+        <div class="capture-preview-actions" id="previewActionRow" hidden>
+          <button class="capture-retake-button" id="retakeCaptureButton" type="button" hidden>Retake</button>
+          <button class="capture-continue-button" id="continueToSalonButton" type="button" hidden>Continue</button>
         </div>
       </section>
 

@@ -1660,6 +1660,43 @@ const getResultDescription = (result) => {
   return result.extraPrompt || result.sourcePrompt || "Selected generated hairstyle result.";
 };
 
+const getPromptVariationContext = (result) => {
+  const explicitBaseName = String(result?.variationBaseName || "").trim();
+  const explicitSequence = Math.floor(Number(result?.variationSequence || 0));
+
+  if (explicitBaseName && explicitSequence >= 1) {
+    return {
+      variationBaseName: explicitBaseName,
+      variationSequence: explicitSequence
+    };
+  }
+
+  const fallbackName = String(result?.name || "").trim() || "Generated hairstyle";
+  let derivedBaseName = fallbackName;
+  let promptVariationDepth = 0;
+
+  while (/\s*Prompt Variation$/i.test(derivedBaseName)) {
+    derivedBaseName = derivedBaseName.replace(/\s*Prompt Variation$/i, "").trim();
+    promptVariationDepth += 1;
+  }
+
+  return {
+    variationBaseName: derivedBaseName || fallbackName,
+    variationSequence: promptVariationDepth > 0 ? promptVariationDepth + 1 : 1
+  };
+};
+
+const getNextPromptVariationContext = (result) => {
+  const currentContext = getPromptVariationContext(result);
+  const nextSequence = Math.max(2, currentContext.variationSequence + 1);
+
+  return {
+    variationBaseName: currentContext.variationBaseName,
+    variationSequence: nextSequence,
+    variationName: `${currentContext.variationBaseName} ${nextSequence}`.trim()
+  };
+};
+
 const clearElementChildren = (element) => {
   while (element.firstChild) {
     element.removeChild(element.firstChild);
@@ -2120,17 +2157,26 @@ const requestTemplateHairstyles = async ({ imageBase64, templates, extraPrompt }
   return payload.results || [];
 };
 
-const requestGeneratedHairstyleViews = async ({ imageBase64, lookName, lookDescription, sourceImagePath = "" }) => {
+const requestGeneratedHairstyleViews = async ({
+  referenceImageBase64,
+  modifierImageBase64,
+  lookName,
+  lookDescription,
+  referenceImagePath = "",
+  modifierImagePath = ""
+}) => {
   const payload = await requestGenerationJson({
     endpoint: "/api/generated-hairstyle-views",
     requestName: "generated-hairstyle-views",
     requestBody: {
-      imageBase64,
+      referenceImageBase64,
+      modifierImageBase64,
       lookName,
       lookDescription
     },
     inputSummary: {
-      sourceImagePath,
+      referenceImagePath,
+      modifierImagePath,
       lookName,
       lookDescription
     },
@@ -2150,6 +2196,8 @@ const requestGeneratedHairstyleVariation = async ({
   modifierImageBase64,
   lookName,
   lookDescription,
+  variationBaseName = "",
+  variationSequence = 0,
   extraPrompt,
   hairColorHex = "",
   hairColorLabel = "",
@@ -2168,6 +2216,8 @@ const requestGeneratedHairstyleVariation = async ({
       modifierImageBase64,
       lookName,
       lookDescription,
+      variationBaseName,
+      variationSequence,
       extraPrompt,
       hairColorHex,
       hairColorLabel,
@@ -2186,6 +2236,8 @@ const requestGeneratedHairstyleVariation = async ({
       }),
       lookName,
       lookDescription,
+      variationBaseName,
+      variationSequence,
       extraPrompt,
       hairColorHex,
       hairColorLabel,
@@ -2231,12 +2283,15 @@ const handleGenerateViews = async () => {
   let requestCompleted = false;
 
   try {
-    const imageBase64 = await getImageDataUrlFromUrl(resultReference.imageUrl);
+    const referenceImageBase64 = await getSelectedImageDataUrl();
+    const modifierImageBase64 = await getImageDataUrlFromUrl(resultReference.imageUrl);
     const results = await requestGeneratedHairstyleViews({
-      imageBase64,
+      referenceImageBase64,
+      modifierImageBase64,
       lookName: resultReference.name,
       lookDescription: getResultDescription(resultReference),
-      sourceImagePath: getResultConsolePath(resultReference)
+      referenceImagePath: getSelectedImageConsolePath(),
+      modifierImagePath: getResultConsolePath(resultReference)
     });
 
     requestCompleted = true;
@@ -2293,13 +2348,16 @@ const handleGeneratePromptVariation = async () => {
   }
 
   const resultReference = activeLightboxResult;
+  const nextVariationContext = getNextPromptVariationContext(resultReference);
   const busyToken = acquireBusyToken({ locksSourceControls: false });
   resultReference.lastVariationPrompt = extraPrompt;
   resultReference.lastVariationHairColorHex = hairColorHex;
   resultReference.isVariationHairColorPanelOpen = isVariationHairColorPanelVisible;
   resultReference.isVariationHairColorCustomPanelOpen = isVariationHairColorCustomVisible;
   resultReference.promptVariationResult = {
-    name: `${resultReference.name} Prompt Variation`,
+    name: nextVariationContext.variationName,
+    variationBaseName: nextVariationContext.variationBaseName,
+    variationSequence: nextVariationContext.variationSequence,
     extraPrompt,
     hairColorHex,
     hairColorLabel: initialHairColorLabel,
@@ -2364,6 +2422,8 @@ const handleGeneratePromptVariation = async () => {
       modifierImageBase64,
       lookName: resultReference.name,
       lookDescription: getResultDescription(resultReference),
+      variationBaseName: nextVariationContext.variationBaseName,
+      variationSequence: nextVariationContext.variationSequence,
       referenceImagePath: getSelectedImageConsolePath(),
       modifierImagePath: getResultConsolePath(resultReference),
       extraPrompt,
@@ -2385,7 +2445,9 @@ const handleGeneratePromptVariation = async () => {
     }
   } catch (error) {
     resultReference.promptVariationResult = {
-      name: `${resultReference.name} Prompt Variation`,
+      name: nextVariationContext.variationName,
+      variationBaseName: nextVariationContext.variationBaseName,
+      variationSequence: nextVariationContext.variationSequence,
       extraPrompt,
       hairColorHex,
       hairColorLabel: initialHairColorLabel,

@@ -555,20 +555,37 @@ body.capture-page {
 
 .salon-login-card {
   width: min(100%, 520px);
+  gap: 30px;
+}
+
+.salon-login-card .capture-kicker {
+  margin-bottom: 2px;
+}
+
+.salon-login-card .capture-title {
+  margin-top: 2px;
+}
+
+.salon-login-card .capture-copy {
+  max-width: 34ch;
+  justify-self: center;
+  line-height: 1.7;
+  margin-top: 4px;
 }
 
 .salon-login-form {
   width: 100%;
   display: grid;
-  gap: 16px;
+  gap: 22px;
 }
 
 .salon-login-input {
-  min-height: 58px;
+  min-height: 60px;
 }
 
 .salon-login-actions {
   grid-template-columns: minmax(0, 1fr);
+  margin-top: 6px;
 }
 
 .salon-login-link {
@@ -1484,8 +1501,8 @@ body.capture-page {
 .capture-header {
   display: grid;
   justify-items: center;
-  gap: 16px;
-  margin-bottom: 22px;
+  gap: 20px;
+  margin-bottom: 34px;
 }
 
 .capture-kicker {
@@ -1521,6 +1538,11 @@ body.capture-page {
   line-height: 1.55;
 }
 
+.capture-copy {
+  max-width: 28ch;
+  font-size: 1.02rem;
+}
+
 .capture-stage,
 .capture-preview-panel,
 .capture-success-panel {
@@ -1529,12 +1551,96 @@ body.capture-page {
 }
 
 .capture-stage {
-  margin-top: 18px;
+  margin-top: 26px;
+}
+
+.capture-stage-frame {
+  width: min(100%, 520px);
+  display: grid;
+  gap: 20px;
+  justify-self: center;
+  padding: 24px 22px;
+  border: 1px solid rgba(17, 17, 17, 0.08);
+  border-radius: 28px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(245, 242, 234, 0.82) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.capture-helper {
+  max-width: 34ch;
+  justify-self: center;
+  font-size: 0.96rem;
 }
 
 .capture-card .action-row {
   width: min(100%, 460px);
   justify-self: center;
+}
+
+.capture-preview-actions {
+  width: min(100%, 460px);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  justify-self: center;
+}
+
+.capture-retake-button,
+.capture-continue-button {
+  appearance: none;
+  min-height: 58px;
+  border-radius: 999px;
+  padding: 16px 24px;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+
+.capture-retake-button {
+  border: 1px solid rgba(17, 17, 17, 0.12);
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--text-primary);
+}
+
+.capture-retake-button:hover,
+.capture-retake-button:focus-visible {
+  transform: translateY(-2px);
+  border-color: rgba(17, 17, 17, 0.2);
+  box-shadow: 0 12px 24px rgba(17, 17, 17, 0.08);
+  outline: none;
+}
+
+.capture-retake-button:active {
+  transform: translateY(0);
+}
+
+.capture-continue-button {
+  border: 1px solid rgba(154, 116, 53, 0.18);
+  background: linear-gradient(135deg, #b48a4b 0%, #8f6733 100%);
+  color: #fffdf8;
+  box-shadow: 0 14px 28px rgba(143, 103, 51, 0.24);
+}
+
+.capture-continue-button:hover,
+.capture-continue-button:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 30px rgba(143, 103, 51, 0.28);
+  outline: none;
+}
+
+.capture-continue-button:active {
+  transform: translateY(0);
+}
+
+.capture-retake-button:disabled,
+.capture-continue-button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+  transform: none;
+  box-shadow: none;
 }
 
 .capture-preview-image {
@@ -1607,6 +1713,10 @@ body.capture-page {
   }
 
   .action-row {
+    grid-template-columns: 1fr;
+  }
+
+  .capture-preview-actions {
     grid-template-columns: 1fr;
   }
 

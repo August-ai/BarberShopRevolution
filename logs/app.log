@@ -582,3 +582,42 @@ Log initialized. Server entries will append below.
   "generationMetricsFile": "C:\\Users\\alkhi\\BarberShopRevolution\\logs\\generation-metrics.json"
 }
 
+[2026-04-23T20:48:12.585Z] [INFO] [server] Server started.
+{
+  "port": 3013,
+  "model": "gemini-3.1-flash-image-preview",
+  "testMode": false,
+  "twoPass": false,
+  "facialFit": false,
+  "appLogFile": "C:\\Users\\alkhi\\BarberShopRevolution\\logs\\app.log",
+  "imageGeneratorLogFile": "C:\\Users\\alkhi\\BarberShopRevolution\\logs\\image-generator.log",
+  "imageGeneratorErrorLogFile": "C:\\Users\\alkhi\\BarberShopRevolution\\logs\\image-generator-errors.log",
+  "generationMetricsFile": "C:\\Users\\alkhi\\BarberShopRevolution\\logs\\generation-metrics.json"
+}
+
+[2026-04-24T05:12:47.192Z] [INFO] [server] Server started.
+{
+  "port": 3013,
+  "model": "gemini-3.1-flash-image-preview",
+  "testMode": false,
+  "twoPass": false,
+  "facialFit": false,
+  "appLogFile": "C:\\Users\\alkhi\\BarberShopRevolution\\logs\\app.log",
+  "imageGeneratorLogFile": "C:\\Users\\alkhi\\BarberShopRevolution\\logs\\image-generator.log",
+  "imageGeneratorErrorLogFile": "C:\\Users\\alkhi\\BarberShopRevolution\\logs\\image-generator-errors.log",
+  "generationMetricsFile": "C:\\Users\\alkhi\\BarberShopRevolution\\logs\\generation-metrics.json"
+}
+
+[2026-04-24T05:43:46.919Z] [INFO] [server] Server started.
+{
+  "port": 3013,
+  "model": "gemini-3.1-flash-image-preview",
+  "testMode": false,
+  "twoPass": false,
+  "facialFit": false,
+  "appLogFile": "C:\\Users\\alkhi\\BarberShopRevolution\\logs\\app.log",
+  "imageGeneratorLogFile": "C:\\Users\\alkhi\\BarberShopRevolution\\logs\\image-generator.log",
+  "imageGeneratorErrorLogFile": "C:\\Users\\alkhi\\BarberShopRevolution\\logs\\image-generator-errors.log",
+  "generationMetricsFile": "C:\\Users\\alkhi\\BarberShopRevolution\\logs\\generation-metrics.json"
+}
+

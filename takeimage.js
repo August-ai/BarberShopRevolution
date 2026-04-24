@@ -20,30 +20,38 @@ const IMAGE_TRANSFER_MIME_TYPE = "image/jpeg";
 
 let previewUrl = "";
 let isUploading = false;
-let lastCaptureSource = "camera";
 let selectedCaptureFile = null;
+let hasPreviewImage = false;
 
 const setStatus = (message) => {
   captureStatusMessage.textContent = message;
 };
 
+const syncControlState = () => {
+  openCameraButton.disabled = isUploading || hasPreviewImage;
+  openUploadButton.disabled = isUploading || hasPreviewImage;
+  retakeCaptureButton.disabled = isUploading || !hasPreviewImage;
+  continueToSalonButton.disabled = isUploading || !hasPreviewImage;
+};
+
 const setBusyState = (busy) => {
   isUploading = busy;
-  openCameraButton.disabled = busy;
-  openUploadButton.disabled = busy;
-  retakeCaptureButton.disabled = busy;
-  continueToSalonButton.disabled = busy;
+  syncControlState();
 };
 
 const setPreviewState = (hasImage) => {
+  hasPreviewImage = hasImage;
   captureStage.hidden = hasImage;
   captureStage.classList.toggle("is-hidden", hasImage);
+  captureStage.inert = hasImage;
   previewStep.hidden = !hasImage;
   previewStep.classList.toggle("is-hidden", !hasImage);
+  previewStep.inert = !hasImage;
   capturePreviewImage.hidden = !hasImage;
   previewActionRow.hidden = !hasImage;
   retakeCaptureButton.hidden = !hasImage;
   continueToSalonButton.hidden = !hasImage;
+  syncControlState();
 };
 
 const openInputPicker = async (inputElement) => {
@@ -71,7 +79,6 @@ const openCameraPicker = async (event) => {
     return;
   }
 
-  lastCaptureSource = "camera";
   await openInputPicker(capturePhotoInput);
 };
 
@@ -83,7 +90,6 @@ const openUploadPicker = async (event) => {
     return;
   }
 
-  lastCaptureSource = "upload";
   await openInputPicker(uploadPhotoInput);
 };
 
@@ -228,7 +234,7 @@ setPreviewState(false);
 
 openCameraButton.addEventListener("click", openCameraPicker);
 openUploadButton.addEventListener("click", openUploadPicker);
-retakeCaptureButton.addEventListener("click", (event) => {
+retakeCaptureButton.addEventListener("click", async (event) => {
   event.preventDefault();
   event.stopPropagation();
 
@@ -238,6 +244,7 @@ retakeCaptureButton.addEventListener("click", (event) => {
 
   retakeCaptureButton.blur();
   resetFlow();
+  await openCameraPicker();
 });
 continueToSalonButton.addEventListener("click", (event) => {
   event.preventDefault();
@@ -246,24 +253,23 @@ continueToSalonButton.addEventListener("click", (event) => {
   handleUpload();
 });
 
-const handleSelectedCaptureFile = (selectedFile, source = "camera") => {
+const handleSelectedCaptureFile = (selectedFile) => {
   if (!selectedFile) {
     setStatus("");
     return;
   }
 
-  lastCaptureSource = source;
   showPreview(selectedFile);
 };
 
 capturePhotoInput.addEventListener("change", () => {
   const [selectedFile] = capturePhotoInput.files;
-  handleSelectedCaptureFile(selectedFile, "camera");
+  handleSelectedCaptureFile(selectedFile);
 });
 
 uploadPhotoInput.addEventListener("change", () => {
   const [selectedFile] = uploadPhotoInput.files;
-  handleSelectedCaptureFile(selectedFile, "upload");
+  handleSelectedCaptureFile(selectedFile);
 });
 
 window.addEventListener("beforeunload", resetPreviewUrl);

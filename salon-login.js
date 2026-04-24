@@ -4,7 +4,6 @@ const salonUsernameInput = document.getElementById("salonUsernameInput");
 const salonPasswordInput = document.getElementById("salonPasswordInput");
 const salonLoginButton = document.getElementById("salonLoginButton");
 const salonLoginStatus = document.getElementById("salonLoginStatus");
-const takeImageLink = document.getElementById("takeImageLink");
 
 const API_BASE_URL = window.location.protocol === "file:" ? "http://localhost:3013" : window.location.origin;
 const currentPathSegments = window.location.pathname.split("/").filter(Boolean);
@@ -27,7 +26,6 @@ const setBusyState = (busy) => {
 };
 
 salonLoginHeading.textContent = salonLabel;
-takeImageLink.href = `/${encodeURIComponent(rawSalonSlug)}/takeimage`;
 salonUsernameInput.value = "Salon";
 salonPasswordInput.value = "Salon";
 

@@ -1,11 +1,191 @@
 {
-  "updatedAt": "2026-04-23T20:34:05.234Z",
-  "totalCompleted": 27,
-  "totalDurationMs": 650285,
-  "averageDurationMs": 24084.63,
+  "updatedAt": "2026-04-24T05:44:29.722Z",
+  "totalCompleted": 47,
+  "totalDurationMs": 1290191,
+  "averageDurationMs": 27450.87,
   "minDurationMs": 10177,
-  "maxDurationMs": 43091,
+  "maxDurationMs": 68871,
   "recent": [
+    {
+      "timestamp": "2026-04-24T05:44:29.722Z",
+      "requestLabel": "long-sleek-cut-with-full-blunt-bangs",
+      "savePrefix": "long-sleek-cut-with-full-blunt-bangs",
+      "durationMs": 25190,
+      "attemptNumber": 1,
+      "referenceImageCount": 1,
+      "savedFile": "long-sleek-cut-with-full-blunt-bangs_1777009469694_weeq3a.webp"
+    },
+    {
+      "timestamp": "2026-04-24T05:40:19.285Z",
+      "requestLabel": "sleek top knot with face-framing tendrils-right-back-view",
+      "savePrefix": "sleek top knot with face-framing tendrils-right-back-view",
+      "durationMs": 68871,
+      "attemptNumber": 1,
+      "referenceImageCount": 1,
+      "savedFile": "sleek top knot with face-framing tendrils-right-back-view_1777009219276_jmhzy8.jpg"
+    },
+    {
+      "timestamp": "2026-04-24T05:39:10.399Z",
+      "requestLabel": "sleek top knot with face-framing tendrils-left-back-view",
+      "savePrefix": "sleek top knot with face-framing tendrils-left-back-view",
+      "durationMs": 29802,
+      "attemptNumber": 1,
+      "referenceImageCount": 1,
+      "savedFile": "sleek top knot with face-framing tendrils-left-back-view_1777009150391_591wfb.jpg"
+    },
+    {
+      "timestamp": "2026-04-24T05:36:56.551Z",
+      "requestLabel": "sleek-top-knot-with-face-framing-tendrils",
+      "savePrefix": "sleek-top-knot-with-face-framing-tendrils",
+      "durationMs": 21758,
+      "attemptNumber": 1,
+      "referenceImageCount": 1,
+      "savedFile": "sleek-top-knot-with-face-framing-tendrils_1777009016542_m7oche.png"
+    },
+    {
+      "timestamp": "2026-04-24T05:36:34.772Z",
+      "requestLabel": "shaggy-lob-with-curtain-bangs",
+      "savePrefix": "shaggy-lob-with-curtain-bangs",
+      "durationMs": 19297,
+      "attemptNumber": 1,
+      "referenceImageCount": 1,
+      "savedFile": "shaggy-lob-with-curtain-bangs_1777008994766_tadu0k.png"
+    },
+    {
+      "timestamp": "2026-04-24T05:35:21.917Z",
+      "requestLabel": "long-butterfly-layers-with-curtain-bangs",
+      "savePrefix": "long-butterfly-layers-with-curtain-bangs",
+      "durationMs": 20151,
+      "attemptNumber": 1,
+      "referenceImageCount": 1,
+      "savedFile": "long-butterfly-layers-with-curtain-bangs_1777008921905_ksqe2f.png"
+    },
+    {
+      "timestamp": "2026-04-24T05:21:33.402Z",
+      "requestLabel": "short-curly-bob-with-side-swept-fringe",
+      "savePrefix": "short-curly-bob-with-side-swept-fringe",
+      "durationMs": 38336,
+      "attemptNumber": 1,
+      "referenceImageCount": 1,
+      "savedFile": "short-curly-bob-with-side-swept-fringe_1777008093391_pgnvs0.png"
+    },
+    {
+      "timestamp": "2026-04-24T05:15:57.507Z",
+      "requestLabel": "textured-short-bob-with-face-framing-bangs",
+      "savePrefix": "textured-short-bob-with-face-framing-bangs",
+      "durationMs": 24185,
+      "attemptNumber": 1,
+      "referenceImageCount": 1,
+      "savedFile": "textured-short-bob-with-face-framing-bangs_1777007757497_8dz7xp.png"
+    },
+    {
+      "timestamp": "2026-04-24T05:15:25.069Z",
+      "requestLabel": "short-curly-bob-with-defined-volume",
+      "savePrefix": "short-curly-bob-with-defined-volume",
+      "durationMs": 21508,
+      "attemptNumber": 1,
+      "referenceImageCount": 1,
+      "savedFile": "short-curly-bob-with-defined-volume_1777007725057_v7aswo.png"
+    },
+    {
+      "timestamp": "2026-04-24T05:13:58.728Z",
+      "requestLabel": "cascading-butterfly-layers-with-chestnut-balayage",
+      "savePrefix": "cascading-butterfly-layers-with-chestnut-balayage",
+      "durationMs": 50467,
+      "attemptNumber": 1,
+      "referenceImageCount": 1,
+      "savedFile": "cascading-butterfly-layers-with-chestnut-balayage_1777007638693_a0uwzk.png"
+    },
+    {
+      "timestamp": "2026-04-24T03:48:29.468Z",
+      "requestLabel": "beachy textured lob with blonde balayage-variation",
+      "savePrefix": "beachy textured lob with blonde balayage-variation",
+      "durationMs": 39363,
+      "attemptNumber": 1,
+      "referenceImageCount": 2,
+      "savedFile": "beachy textured lob with blonde balayage-variation_1777002509464_xgsbri.jpg"
+    },
+    {
+      "timestamp": "2026-04-24T03:42:52.596Z",
+      "requestLabel": "beachy textured lob with blonde balayage-right-back-view",
+      "savePrefix": "beachy textured lob with blonde balayage-right-back-view",
+      "durationMs": 40391,
+      "attemptNumber": 1,
+      "referenceImageCount": 0,
+      "savedFile": "beachy textured lob with blonde balayage-right-back-view_1777002172592_9tbf9w.jpg"
+    },
+    {
+      "timestamp": "2026-04-24T03:42:12.200Z",
+      "requestLabel": "beachy textured lob with blonde balayage-left-back-view",
+      "savePrefix": "beachy textured lob with blonde balayage-left-back-view",
+      "durationMs": 23982,
+      "attemptNumber": 1,
+      "referenceImageCount": 0,
+      "savedFile": "beachy textured lob with blonde balayage-left-back-view_1777002132195_vdkebn.jpg"
+    },
+    {
+      "timestamp": "2026-04-24T03:41:15.487Z",
+      "requestLabel": "layered-midi-cut-with-bottleneck-bangs",
+      "savePrefix": "layered-midi-cut-with-bottleneck-bangs",
+      "durationMs": 23104,
+      "attemptNumber": 1,
+      "referenceImageCount": 1,
+      "savedFile": "layered-midi-cut-with-bottleneck-bangs_1777002075482_i08nr1.jpg"
+    },
+    {
+      "timestamp": "2026-04-24T03:40:52.371Z",
+      "requestLabel": "beachy-textured-lob-with-blonde-balayage",
+      "savePrefix": "beachy-textured-lob-with-blonde-balayage",
+      "durationMs": 22383,
+      "attemptNumber": 1,
+      "referenceImageCount": 1,
+      "savedFile": "beachy-textured-lob-with-blonde-balayage_1777002052356_cnu7kn.jpg"
+    },
+    {
+      "timestamp": "2026-04-23T21:06:57.042Z",
+      "requestLabel": "redhair shoulderhair prompt variation prompt variation prompt variation-variation",
+      "savePrefix": "redhair shoulderhair prompt variation prompt variation prompt variation-variation",
+      "durationMs": 41887,
+      "attemptNumber": 1,
+      "referenceImageCount": 2,
+      "savedFile": "redhair shoulderhair prompt variation prompt variation prompt variation-variation_1776978417037_5bmyjp.jpg"
+    },
+    {
+      "timestamp": "2026-04-23T21:04:05.889Z",
+      "requestLabel": "redhair shoulderhair prompt variation prompt variation-variation",
+      "savePrefix": "redhair shoulderhair prompt variation prompt variation-variation",
+      "durationMs": 17935,
+      "attemptNumber": 1,
+      "referenceImageCount": 2,
+      "savedFile": "redhair shoulderhair prompt variation prompt variation-variation_1776978245884_725wg0.jpg"
+    },
+    {
+      "timestamp": "2026-04-23T21:03:10.987Z",
+      "requestLabel": "redhair shoulderhair prompt variation-variation",
+      "savePrefix": "redhair shoulderhair prompt variation-variation",
+      "durationMs": 30826,
+      "attemptNumber": 1,
+      "referenceImageCount": 2,
+      "savedFile": "redhair shoulderhair prompt variation-variation_1776978190983_7sva7m.jpg"
+    },
+    {
+      "timestamp": "2026-04-23T20:54:10.279Z",
+      "requestLabel": "redhair shoulderhair-variation",
+      "savePrefix": "redhair shoulderhair-variation",
+      "durationMs": 40734,
+      "attemptNumber": 1,
+      "referenceImageCount": 2,
+      "savedFile": "redhair shoulderhair-variation_1776977650274_n6bmh9.jpg"
+    },
+    {
+      "timestamp": "2026-04-23T20:52:30.636Z",
+      "requestLabel": "redhair_shoulderhair",
+      "savePrefix": "redhair_shoulderhair",
+      "durationMs": 39736,
+      "attemptNumber": 1,
+      "referenceImageCount": 1,
+      "savedFile": "redhair_shoulderhair_1776977550631_uli4f6.jpg"
+    },
     {
       "timestamp": "2026-04-23T20:34:05.234Z",
       "requestLabel": "curly-shag-with-short-fringe",
