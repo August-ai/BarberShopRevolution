@@ -48,7 +48,7 @@ const hairSegmenterScriptPath = path.join(scriptsFolder, "segment_hair.py");
 const hairLengthAnalyzerScriptPath = path.join(scriptsFolder, "analyze_hair_length.py");
 const facialFitScriptPath = path.join(scriptsFolder, "facial_fit.py");
 const hairSegmenterModelUrl = "https://storage.googleapis.com/mediapipe-models/image_segmenter/hair_segmenter/float32/latest/hair_segmenter.tflite";
-const pythonCommand = process.env.PYTHON_BIN || "python";
+const configuredPythonCommand = String(process.env.PYTHON_BIN || "").trim();
 const execFileAsync = promisify(execFile);
 const IMAGE_GENERATION_MAX_ATTEMPTS = Math.max(1, Number(process.env.IMAGE_GENERATION_MAX_ATTEMPTS || 3));
 const SALON_SESSION_COOKIE_NAME = "salon_auth";
@@ -73,6 +73,84 @@ const DEFAULT_SALON_ACCESS_CONFIG = {
             }
         }
     }
+};
+
+const getPythonExecutionCandidates = () => {
+    const candidates = [];
+
+    if (configuredPythonCommand) {
+        candidates.push({
+            command: configuredPythonCommand,
+            prefixArgs: [],
+            label: configuredPythonCommand
+        });
+    }
+
+    candidates.push(
+        {
+            command: "python",
+            prefixArgs: [],
+            label: "python"
+        },
+        {
+            command: "python3",
+            prefixArgs: [],
+            label: "python3"
+        },
+        {
+            command: "py",
+            prefixArgs: ["-3"],
+            label: "py -3"
+        }
+    );
+
+    const uniqueCandidates = [];
+    const seenKeys = new Set();
+
+    for (const candidate of candidates) {
+        const key = `${candidate.command}::${candidate.prefixArgs.join(" ")}`;
+
+        if (seenKeys.has(key)) {
+            continue;
+        }
+
+        seenKeys.add(key);
+        uniqueCandidates.push(candidate);
+    }
+
+    return uniqueCandidates;
+};
+
+const isCommandNotFoundError = (error) => {
+    const code = String(error?.code || "").trim().toUpperCase();
+    const message = String(error?.message || "").trim().toLowerCase();
+    return code === "ENOENT" || message.includes("enoent");
+};
+
+const runPythonScript = async(scriptPath, scriptArgs = [], options = {}) => {
+    const candidates = getPythonExecutionCandidates();
+    let lastError = null;
+
+    for (const candidate of candidates) {
+        try {
+            return await execFileAsync(
+                candidate.command,
+                [...candidate.prefixArgs, scriptPath, ...scriptArgs],
+                options
+            );
+        } catch (error) {
+            lastError = error;
+
+            if (!isCommandNotFoundError(error)) {
+                throw error;
+            }
+        }
+    }
+
+    const error = new Error(`No Python runtime was found. Tried: ${candidates.map((candidate) => candidate.label).join(", ")}`);
+    error.code = "PYTHON_NOT_FOUND";
+    error.details = lastError ? getErrorDetails(lastError) : "";
+    throw error;
 };
 
 const parseBooleanEnv = (value, defaultValue = false) => {
@@ -2319,7 +2397,6 @@ const runFacialFit = async({
         saveDataUrlToFile(referenceImageDataUrl, referencePath);
 
         const facialFitArgs = [
-            facialFitScriptPath,
             sourcePath,
             referencePath,
             outputPath
@@ -2329,9 +2406,10 @@ const runFacialFit = async({
             facialFitArgs.push("--reference-geometry", cachedReferenceGeometry.geometryPath);
         }
 
-        const { stdout, stderr } = await execFileAsync(
-            pythonCommand,
-            facialFitArgs, {
+        const { stdout, stderr } = await runPythonScript(
+            facialFitScriptPath,
+            facialFitArgs,
+            {
                 cwd: __dirname,
                 maxBuffer: 50 * 1024 * 1024,
                 timeout: 120000
@@ -2407,14 +2485,15 @@ const runHairSegmentation = async({ imageBase64 }) => {
     try {
         saveDataUrlToFile(imageBase64, inputPath);
 
-        const { stdout, stderr } = await execFileAsync(
-            pythonCommand, [
-                hairSegmenterScriptPath,
+        const { stdout, stderr } = await runPythonScript(
+            hairSegmenterScriptPath,
+            [
                 inputPath,
                 outputPath,
                 "--model",
                 hairSegmenterModelPath
-            ], {
+            ],
+            {
                 cwd: __dirname,
                 maxBuffer: 50 * 1024 * 1024,
                 timeout: 120000
@@ -2488,13 +2567,14 @@ const runHairLengthAnalysis = async({ imageBase64 }) => {
     try {
         saveDataUrlToFile(imageBase64, inputPath);
 
-        const { stdout, stderr } = await execFileAsync(
-            pythonCommand, [
-                hairLengthAnalyzerScriptPath,
+        const { stdout, stderr } = await runPythonScript(
+            hairLengthAnalyzerScriptPath,
+            [
                 inputPath,
                 "--model",
                 hairSegmenterModelPath
-            ], {
+            ],
+            {
                 cwd: __dirname,
                 maxBuffer: 50 * 1024 * 1024,
                 timeout: 120000
@@ -3040,7 +3120,31 @@ app.post("/api/random-hairstyles", async(req, res) => {
             return res.status(400).json({ error: "Please choose a photo first." });
         }
 
-        const hairLengthAnalysis = await runHairLengthAnalysis({ imageBase64 });
+        let hairLengthAnalysis;
+
+        try {
+            hairLengthAnalysis = await runHairLengthAnalysis({ imageBase64 });
+        } catch (error) {
+            hairLengthAnalysis = {
+                lengthCategory: "long",
+                lengthLabel: "Unknown",
+                metrics: {
+                    fallback: true,
+                    reason: String(error?.code || "").trim() || "analysis_failed"
+                }
+            };
+
+            writeAppLog({
+                level: "WARN",
+                category: "hair-length",
+                message: "Hair length analysis failed. Falling back to the full random hairstyle pool.",
+                data: {
+                    error: serializeErrorForLog(error),
+                    fallbackLengthCategory: hairLengthAnalysis.lengthCategory
+                }
+            });
+        }
+
         const selectedStyles = getEligibleRandomTemplateStyles({
             lengthCategory: hairLengthAnalysis.lengthCategory,
             count: resultCount
