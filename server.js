@@ -1375,11 +1375,13 @@ const buildTwoPassHairFitPrompt = () => [
     "Keep the exact same hairstyle, hair length, hair color, person, and background unchanged."
 ].join(" ");
 
-const buildRandomReferenceTransferPrompt = () => {
+const buildRandomReferenceTransferPrompt = ({ randomSeed }) => {
     return [
         "Transfer the hairstyle from Image 2 to Image 1.",
         "Keep the person in Image 1 identical.",
         "Make the result direct front-facing with a white background, butterfly studio lighting, and tack sharp focus.",
+        "Keep the hair the same length as Image 1 or shorter. Do not generate longer hair than in Image 1.",
+        `Random Seed: ${randomSeed}.`,
         "Keep it natural and salon-quality."
     ].join(" ");
 };
@@ -3147,42 +3149,16 @@ app.post("/api/random-hairstyles", async(req, res) => {
             return res.status(400).json({ error: "Please choose a photo first." });
         }
 
-        let hairLengthAnalysis;
-
-        try {
-            hairLengthAnalysis = await runHairLengthAnalysis({ imageBase64 });
-        } catch (error) {
-            hairLengthAnalysis = {
-                lengthCategory: "long",
-                lengthLabel: "Unknown",
-                metrics: {
-                    fallback: true,
-                    reason: String(error?.code || "").trim() || "analysis_failed"
-                }
-            };
-
-            writeAppLog({
-                level: "WARN",
-                category: "hair-length",
-                message: "Hair length analysis failed. Falling back to the full random hairstyle pool.",
-                data: {
-                    error: serializeErrorForLog(error),
-                    fallbackLengthCategory: hairLengthAnalysis.lengthCategory
-                }
-            });
-        }
-
-        const selectedStyles = getEligibleRandomTemplateStyles({
-            lengthCategory: hairLengthAnalysis.lengthCategory,
-            count: resultCount
-        });
+        const selectedStyles = shuffleItems(listTemplateStyles())
+            .slice(0, resultCount);
 
         if (selectedStyles.length === 0) {
-            return res.status(400).json({ error: "We couldn't find compatible hairstyle references for this photo." });
+            return res.status(400).json({ error: "We couldn't find hairstyle references right now." });
         }
 
         const results = await Promise.all(selectedStyles.map(async(style) => {
-            const finalPrompt = buildRandomReferenceTransferPrompt();
+            const randomSeed = crypto.randomInt(100000, 1000000);
+            const finalPrompt = buildRandomReferenceTransferPrompt({ randomSeed });
             const blurredReferenceImageDataUrl = getBlurredStyleReferenceDataUrl(style.filename);
             const originalReferenceImageDataUrl = blurredReferenceImageDataUrl ? "" : getStyleReferenceDataUrl(style.filename);
             const initialReferenceImageDataUrl = blurredReferenceImageDataUrl || originalReferenceImageDataUrl;
@@ -3242,8 +3218,7 @@ app.post("/api/random-hairstyles", async(req, res) => {
                     savedFile: result.savedFile,
                     testMode: result.testMode,
                     referenceImageUrl: style.imageUrl,
-                    referenceImageVariant,
-                    detectedHairLength: hairLengthAnalysis.lengthLabel
+                    referenceImageVariant
                 };
             } catch (error) {
                 const errorResponse = getPublicErrorResponse(error, "We couldn't create this look right now.");
@@ -3256,9 +3231,9 @@ app.post("/api/random-hairstyles", async(req, res) => {
                         hairstyleName: style.name || "",
                         sourcePrompt: style.prompt || "",
                         finalPrompt,
+                        randomSeed,
                         referenceFilename: style.filename || "",
-                        attemptedReferenceVariants,
-                        detectedHairLength: hairLengthAnalysis
+                        attemptedReferenceVariants
                     }
                 });
                 return {
@@ -3268,15 +3243,14 @@ app.post("/api/random-hairstyles", async(req, res) => {
                     errorMessage: errorResponse.message,
                     errorReason: errorResponse.reason || "",
                     errorDetails: errorResponse.details || "",
-                    referenceImageUrl: style.imageUrl,
-                    detectedHairLength: hairLengthAnalysis.lengthLabel
+                    referenceImageUrl: style.imageUrl
                 };
             }
         }));
 
         res.json({
             results,
-            detectedHairLength: hairLengthAnalysis,
+            detectedHairLength: null,
             testMode: TEST_MODE
         });
     } catch (error) {
