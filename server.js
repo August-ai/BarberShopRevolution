@@ -175,6 +175,17 @@ const TEST_MODE = parseBooleanEnv(
     process.env.TEST_MODE ?? process.env.NANO_BANANA_TEST_MODE,
     false
 );
+const IS_RAILWAY_RUNTIME = Boolean(
+    process.env.RAILWAY_PROJECT_ID ||
+    process.env.RAILWAY_SERVICE_ID ||
+    process.env.RAILWAY_ENVIRONMENT_ID ||
+    process.env.RAILWAY_ENVIRONMENT ||
+    process.env.RAILWAY_PUBLIC_DOMAIN
+);
+const PYTHON_IMAGE_TOOLS_ENABLED = parseBooleanEnv(
+    process.env.PYTHON_IMAGE_TOOLS_ENABLED,
+    !IS_RAILWAY_RUNTIME
+);
 const TWO_PASS = parseBooleanEnv(
     process.env.TWO_PASS ?? process.env.TwoPass,
     false
@@ -183,6 +194,7 @@ const FACIAL_FIT = parseBooleanEnv(
     process.env.FACIAL_FIT ?? process.env.FacialFit,
     false
 );
+const FACIAL_FIT_ENABLED = FACIAL_FIT && PYTHON_IMAGE_TOOLS_ENABLED;
 const FAL_AI_USED = parseBooleanEnv(
     process.env.Fal_Ai_Used ?? process.env.FAL_AI_USED,
     true
@@ -2085,7 +2097,7 @@ const generateImageWithFal = async({
     const requestStartedAt = Date.now();
     let effectiveImageBase64 = imageBase64;
 
-    if (FACIAL_FIT && useFacialFit && normalizedReferenceImages[0]) {
+    if (FACIAL_FIT_ENABLED && useFacialFit && normalizedReferenceImages[0]) {
         try {
             const facialFitResult = await runFacialFit({
                 sourceImageBase64: imageBase64,
@@ -2467,6 +2479,14 @@ const runFacialFit = async({
 };
 
 const runHairSegmentation = async({ imageBase64 }) => {
+    if (!PYTHON_IMAGE_TOOLS_ENABLED) {
+        throw createPublicError(
+            "Hair tools are unavailable in this deployment right now.",
+            503,
+            "Python-backed image tools are disabled for this runtime."
+        );
+    }
+
     await ensureHairSegmenterModel();
 
     if (!fs.existsSync(hairSegmenterScriptPath)) {
@@ -2554,6 +2574,12 @@ const runHairSegmentation = async({ imageBase64 }) => {
 };
 
 const runHairLengthAnalysis = async({ imageBase64 }) => {
+    if (!PYTHON_IMAGE_TOOLS_ENABLED) {
+        const error = new Error("Python-backed hair length analysis is disabled for this runtime.");
+        error.code = "PYTHON_TOOLS_DISABLED";
+        throw error;
+    }
+
     await ensureHairSegmenterModel();
 
     if (!fs.existsSync(hairLengthAnalyzerScriptPath)) {
@@ -2647,7 +2673,7 @@ const generateImageVariation = async({
 
     let effectiveImageBase64 = imageBase64;
 
-    if (FACIAL_FIT && useFacialFit && normalizedReferenceImages[0]) {
+    if (FACIAL_FIT_ENABLED && useFacialFit && normalizedReferenceImages[0]) {
         try {
             const facialFitResult = await runFacialFit({
                 sourceImageBase64: imageBase64,
@@ -3009,7 +3035,8 @@ app.get("/api/health", (_req, res) => {
         model: MODEL_NAME,
         hasApiKey: Boolean(process.env.GEMINI_API_KEY),
         testMode: TEST_MODE,
-        facialFit: FACIAL_FIT
+        facialFit: FACIAL_FIT_ENABLED,
+        pythonImageToolsEnabled: PYTHON_IMAGE_TOOLS_ENABLED
     });
 });
 
@@ -3754,7 +3781,8 @@ app.listen(PORT, () => {
             model: MODEL_NAME,
             testMode: TEST_MODE,
             twoPass: TWO_PASS,
-            facialFit: FACIAL_FIT,
+            facialFit: FACIAL_FIT_ENABLED,
+            pythonImageToolsEnabled: PYTHON_IMAGE_TOOLS_ENABLED,
             appLogFile,
             imageGeneratorLogFile,
             imageGeneratorErrorLogFile,
